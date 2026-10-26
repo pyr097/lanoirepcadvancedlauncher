@@ -1,9 +1,12 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using Microsoft.Win32;
 using LANoireLauncher.Core;
+using LANoireLauncher.Overlay;
 
 namespace LANoireLauncher;
 
@@ -14,6 +17,46 @@ public partial class MainWindow : Window
     private GameInstall? _game;
     private readonly List<Field> _patch = new();
     private readonly List<Field> _gfx = new();
+    private OverlayController? _overlay;
+    private HwndSource? _hwndSource;
+
+    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+    [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint vk);
+    [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hwnd, int id);
+    private const int HotkeyId = 0x4C41;   // Ctrl+Shift+F toggles the overlay
+
+    // dark title bar + noir caption colour (Windows 10 20H1+ / 11; silently ignored on older builds)
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var h = new WindowInteropHelper(this).Handle;
+        int on = 1, caption = 0x000E0D0D, text = 0x00D4E2E8;      // COLORREF = 0x00BBGGRR
+        DwmSetWindowAttribute(h, 20, ref on, 4);
+        DwmSetWindowAttribute(h, 35, ref caption, 4);
+        DwmSetWindowAttribute(h, 36, ref text, 4);
+        _hwndSource = HwndSource.FromHwnd(h);
+        _hwndSource?.AddHook(WndProc);
+        RegisterHotKey(h, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x46);  // MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'F'
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == 0x0312 && wParam.ToInt32() == HotkeyId)
+        {
+            if (_overlay != null) _overlay.UserVisible = !_overlay.UserVisible;
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        var h = new WindowInteropHelper(this).Handle;
+        UnregisterHotKey(h, HotkeyId);
+        _hwndSource?.RemoveHook(WndProc);
+        _overlay?.Dispose();
+        base.OnClosed(e);
+    }
 
     public MainWindow()
     {
@@ -57,7 +100,6 @@ public partial class MainWindow : Window
             new Field(GfxSection, "LOD Quality", "LOD quality", FieldKind.Combo, "", quality),
             new Field(GfxSection, "Interface Size", "Interface size", FieldKind.Combo, "", new[] { "Normal" }),
             new Field(GfxSection, "Threading", "Threading", FieldKind.Combo, "", new[] { "Multi", "Single" }),
-            new Field(GfxSection, "Renderer", "Renderer", FieldKind.Combo, "", new[] { "DirectX 9", "DirectX 11" }),
             new Field(GfxSection, "Command Line", "Command line (game's own)", FieldKind.Text, "Stored in settings.ini by the game."),
         });
 
@@ -73,6 +115,8 @@ public partial class MainWindow : Window
         if (path != null) await OpenGameAsync(path);
         else { InfoText.Text = "No game selected. Use Browse… and pick LaNoire.exe."; Status("Select your L.A. Noire folder to begin."); }
         RefreshProfiles();
+        OverlayBox.IsChecked = _cfg.OverlayEnabled;
+        RefreshOverlayTool();
     }
 
     private async Task OpenGameAsync(string path)
@@ -179,7 +223,8 @@ public partial class MainWindow : Window
     }
 
     // ---------- DXVK / Vulkan ----------
-    private DxvkApi SelectedApi => (DxvkApi)Math.Max(0, DxvkApiBox.SelectedIndex);
+    // DirectX 11 is always used; the box only decides whether DXVK (Vulkan) sits on top of it.
+    private DxvkApi SelectedApi => DxvkEnableBox.IsChecked == true ? DxvkApi.D3D11 : DxvkApi.Off;
 
     private string DxvkVersionText => string.IsNullOrWhiteSpace(DxvkVersionBox.Text) ? "latest" : DxvkVersionBox.Text.Trim();
 
@@ -192,14 +237,12 @@ public partial class MainWindow : Window
         var st = DxvkManager.GetStatus(_game);
         DxvkStatusText.Text = st.Label + (_game.Is64Bit ? "   [64-bit exe]" : "   [32-bit exe]");
         DxvkCacheText.Text = $"Pipeline cache: {DxvkManager.CacheBytes() / 1048576.0:F1} MB";
-        if (st.D3D11Present) DxvkApiBox.SelectedIndex = 2;
-        else if (st.D3D9Present) DxvkApiBox.SelectedIndex = 1;
+        DxvkEnableBox.IsChecked = st.D3D11Present;
     }
 
     private void DxvkInstall(string archive, string? version)
     {
-        var api = SelectedApi;
-        if (api == DxvkApi.Off) { Status("Choose Direct3D 9 or Direct3D 11 first, then install."); return; }
+        const DxvkApi api = DxvkApi.D3D11;
         try { DxvkManager.Apply(_game!, api, archive, version, false); }
         catch (LoaderConflictException ex)
         {
@@ -209,7 +252,7 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
             DxvkManager.Apply(_game!, api, archive, version, true);
         }
-        RefreshDxvk(); Status($"DXVK installed for {api}.");
+        RefreshDxvk(); Status("DXVK installed. Tick \"Render with Vulkan\" and press Play to use it.");
     }
 
     private void DxvkInstallArchive_Click(object sender, RoutedEventArgs e)
@@ -224,7 +267,6 @@ public partial class MainWindow : Window
     private async void DxvkDownload_Click(object sender, RoutedEventArgs e)
     {
         if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
-        if (SelectedApi == DxvkApi.Off) { Status("Choose Direct3D 9 or Direct3D 11 first."); return; }
         if (MessageBox.Show($"Download DXVK ({DxvkVersionText}) from github.com/doitsujin/dxvk and install it into your game folder?\n\nDXVK is licensed under the zlib licence.",
                 "Download DXVK", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
@@ -239,7 +281,7 @@ public partial class MainWindow : Window
     private void DxvkUninstall_Click(object sender, RoutedEventArgs e)
     {
         if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
-        try { DxvkManager.Uninstall(_game!); DxvkApiBox.SelectedIndex = 0; RefreshDxvk(); Status("DXVK removed; the game uses native Direct3D again."); }
+        try { DxvkManager.Uninstall(_game!); DxvkEnableBox.IsChecked = false; RefreshDxvk(); Status("DXVK removed; the game uses native Direct3D again."); }
         catch (Exception ex) { Status("DXVK uninstall failed: " + ex.Message); }
     }
 
@@ -254,24 +296,22 @@ public partial class MainWindow : Window
     private static string? FindDx11Key(IniDocument ini) =>
         ini.Keys().FirstOrDefault(k => Regex.IsMatch(k, @"(dx|d3d|directx).*11|11.*(dx|d3d|directx)", RegexOptions.IgnoreCase));
 
-    /// <summary>Makes V-Patch's renderer choice agree with the DXVK API so DXVK wraps the API the game really uses.</summary>
-    private string? SyncRendererWithVPatch()
+    /// <summary>DirectX 11 is always forced in V-Patch's lanvp.ini, with or without DXVK.</summary>
+    private string? ForceDx11()
     {
-        var api = SelectedApi;
-        if (api == DxvkApi.Off || _game == null || !File.Exists(_game.LanvpIni)) return null;
+        if (_game == null || !File.Exists(_game.LanvpIni)) return null;
         var ini = IniDocument.Load(_game.LanvpIni, '=');
         var key = FindDx11Key(ini);
-        if (key == null) return "No DirectX 11 option found in lanvp.ini - make sure the game renders with the API you picked.";
-        var want = api == DxvkApi.D3D11 ? "1" : "0";
-        if (ini.Get(key) == want) return null;
+        if (key == null) return "No DirectX 11 option found in lanvp.ini - check that the game really renders with DirectX 11.";
+        if (ini.Get(key) == "1") return null;
         LauncherConfig.Backup(_game.LanvpIni);
-        ini.Set(key, want); ini.Save();
-        return $"Set '{key}' = {want} in lanvp.ini to match the DXVK API.";
+        ini.Set(key, "1"); ini.Save();
+        return $"Set '{key}' = 1 in lanvp.ini (DirectX 11).";
     }
 
     private Dictionary<string, string> DxvkEnvironment() =>
         SelectedApi == DxvkApi.Off ? new()
-        : DxvkManager.BuildEnvironment(DxvkHudBox.Text, DxvkFpsBox.Text, DxvkConfBox.Text, ComboText(DxvkLogBox));
+        : DxvkManager.BuildEnvironment(DxvkConfBox.Text, ComboText(DxvkLogBox));
 
     // ---------- apply / launch ----------
     private bool Apply()
@@ -316,6 +356,7 @@ public partial class MainWindow : Window
                 LauncherConfig.Backup(_cfg.SettingsPath);
                 var ini = IniDocument.Load(_cfg.SettingsPath, ':');
                 foreach (var f in _gfx) ini.Set(f.Key, f.GetValue(), f.Section);
+                if (ini.Get("Renderer", GfxSection) != null) ini.Set("Renderer", "DirectX 11", GfxSection);
                 ini.Save();
             }
         }
@@ -325,9 +366,9 @@ public partial class MainWindow : Window
         try
         {
             var ds = DxvkManager.GetStatus(_game!);
-            if (SelectedApi != DxvkApi.Off || ds.D3D9Present || ds.D3D11Present)
+            if (SelectedApi != DxvkApi.Off || ds.D3D11Present)
                 DxvkManager.Apply(_game!, SelectedApi, null, null, false);   // switches the DLL set or turns DXVK off; never installs new files
-            if (SyncRendererWithVPatch() is { } n) note = " " + n;
+            if (ForceDx11() is { } n) note = " " + n;
             RefreshDxvk();
         }
         catch (Exception ex) { Status("DXVK: " + ex.Message); return false; }
@@ -354,11 +395,62 @@ public partial class MainWindow : Window
                 Arguments = string.Join(" ", args),
                 UseShellExecute = false,
             };
+            psi.Environment.Remove("DXVK_HUD");   // DXVK's own HUD is never shown; use the launcher overlay instead
             foreach (var kv in DxvkEnvironment()) psi.Environment[kv.Key] = kv.Value;
             Process.Start(psi);
-            Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK, " + SelectedApi + "]" : ""));
+            Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK]" : "   [DirectX 11]"));
         }
-        catch (Exception ex) { Status("Launch failed: " + ex.Message); }
+        catch (Exception ex) { Status("Launch failed: " + ex.Message); return; }
+        if (OverlayBox.IsChecked == true) _ = StartOverlayAsync();
+    }
+
+    // ---------- FPS overlay ----------
+    private void RefreshOverlayTool()
+    {
+        var ok = !string.IsNullOrEmpty(_cfg.PresentMonPath) && File.Exists(_cfg.PresentMonPath);
+        OverlayPmText.Text = ok ? "PresentMon ready: " + _cfg.PresentMonPath : "PresentMon not installed (needed for the overlay).";
+    }
+
+    private void OverlayBox_Click(object sender, RoutedEventArgs e)
+    {
+        _cfg.OverlayEnabled = OverlayBox.IsChecked == true;
+        _cfg.Save();
+        if (!_cfg.OverlayEnabled) { _overlay?.Dispose(); _overlay = null; OverlayMsgText.Text = ""; }
+        else if (string.IsNullOrEmpty(_cfg.PresentMonPath) || !File.Exists(_cfg.PresentMonPath))
+            OverlayMsgText.Text = "Download PresentMon (or pick your own PresentMon.exe) so the overlay can work.";
+    }
+
+    private async void PmDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show("Download the latest PresentMon console tool from github.com/GameTechDev/PresentMon?\n\nPresentMon is © Intel, MIT licence.",
+                "Download PresentMon", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            OverlayMsgText.Text = "Downloading PresentMon…";
+            _cfg.PresentMonPath = await FrameMonitor.DownloadAsync();
+            _cfg.Save(); RefreshOverlayTool(); OverlayMsgText.Text = "PresentMon installed.";
+        }
+        catch (Exception ex) { OverlayMsgText.Text = "Download failed: " + ex.Message; }
+    }
+
+    private void PmBrowse_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Title = "Select PresentMon console exe", Filter = "PresentMon*.exe|PresentMon*.exe|Executables|*.exe" };
+        if (dlg.ShowDialog() != true) return;
+        _cfg.PresentMonPath = dlg.FileName; _cfg.Save(); RefreshOverlayTool();
+    }
+
+    private async Task StartOverlayAsync()
+    {
+        _overlay?.Dispose(); _overlay = null;
+        var exe = _cfg.PresentMonPath;
+        if (string.IsNullOrEmpty(exe) || !File.Exists(exe)) { OverlayMsgText.Text = "Overlay skipped: PresentMon is not installed."; return; }
+        OverlayMsgText.Text = "Starting overlay…";
+        var (mon, err) = await FrameMonitor.StartAsync(exe, "LaNoire.exe");
+        if (mon == null) { OverlayMsgText.Text = "Overlay: " + err; return; }
+        var ctl = new OverlayController(mon, msg => OverlayMsgText.Text = msg);
+        ctl.Finished += () => { if (_overlay == ctl) _overlay = null; };
+        _overlay = ctl;
     }
 
     // ---------- profiles ----------
@@ -382,7 +474,7 @@ public partial class MainWindow : Window
             IgnoreFocus = IgnoreFocusBox.IsChecked == true, ExtraArgs = ExtraArgsBox.Text,
             Dxvk = new()
             {
-                ["Api"] = SelectedApi.ToString(), ["Hud"] = DxvkHudBox.Text, ["Fps"] = DxvkFpsBox.Text,
+                ["Api"] = SelectedApi.ToString(),
                 ["Log"] = ComboText(DxvkLogBox), ["Conf"] = DxvkConfBox.Text,
             },
         });
@@ -395,9 +487,7 @@ public partial class MainWindow : Window
         if (p == null) { Status("No such profile."); return; }
         foreach (var f in _patch) if (p.Patch.TryGetValue(f.Key, out var v)) f.SetValue(v);
         foreach (var f in _gfx) if (p.Graphics.TryGetValue(f.Key, out var v)) f.SetValue(v);
-        if (p.Dxvk.TryGetValue("Api", out var api) && Enum.TryParse<DxvkApi>(api, out var a)) DxvkApiBox.SelectedIndex = (int)a;
-        DxvkHudBox.Text = p.Dxvk.GetValueOrDefault("Hud", "");
-        DxvkFpsBox.Text = p.Dxvk.GetValueOrDefault("Fps", "");
+        DxvkEnableBox.IsChecked = p.Dxvk.TryGetValue("Api", out var api) && api == nameof(DxvkApi.D3D11);   // old D3D9 profiles load as "off"
         DxvkConfBox.Text = p.Dxvk.GetValueOrDefault("Conf", "");
         var lg = p.Dxvk.GetValueOrDefault("Log", "default");
         for (int i = 0; i < DxvkLogBox.Items.Count; i++)

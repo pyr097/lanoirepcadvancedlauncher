@@ -1,0 +1,16 @@
+<Window x:Class="LANoireLauncher.Overlay.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False" IsHitTestVisible="False"
+        SizeToContent="WidthAndHeight" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+  <Border Background="#B8090909" BorderBrush="#2EE8E2D4" BorderThickness="1" CornerRadius="4" Padding="9,5,9,6">
+    <StackPanel MinWidth="66">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <TextBlock x:Name="FpsText" Text="--" FontFamily="Cascadia Mono, Consolas" FontSize="15" FontWeight="SemiBold" Foreground="#E8E2D4"/>
+        <TextBlock Text=" FPS" FontFamily="Segoe UI" FontSize="10" FontWeight="SemiBold" Foreground="#C8352B" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+      </StackPanel>
+      <TextBlock x:Name="MsText" Text="-- ms" HorizontalAlignment="Right" FontFamily="Cascadia Mono, Consolas" FontSize="11" Foreground="#8C877B"/>
+    </StackPanel>
+  </Border>
+</Window>

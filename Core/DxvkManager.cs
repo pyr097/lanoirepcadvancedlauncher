@@ -5,11 +5,11 @@ using System.Text.Json;
 
 namespace LANoireLauncher.Core;
 
-public enum DxvkApi { Off, D3D9, D3D11 }
+/// <summary>The launcher always runs the game on DirectX 11; DXVK (Vulkan) is an optional layer on top of it.</summary>
+public enum DxvkApi { Off, D3D11 }
 
 public sealed class DxvkStatus
 {
-    public bool D3D9Present { get; init; }
     public bool D3D11Present { get; init; }   // d3d11.dll + dxgi.dll
     public string Label { get; init; } = "";
 }
@@ -17,12 +17,11 @@ public sealed class DxvkStatus
 /// <summary>
 /// Installs/removes DXVK (zlib licence, github.com/doitsujin/dxvk) next to LaNoire.exe.
 /// DXVK is never bundled: it comes from an archive you pick or from GitHub at runtime.
-/// Only the DLLs for the chosen API are installed, and only 32-bit or 64-bit DLLs matching the exe.
+/// Only d3d11.dll + dxgi.dll are installed (the game always runs on DirectX 11), 32-bit or 64-bit to match the exe.
 /// Runtime options are passed as environment variables, so no config file is written into the game folder.
 /// </summary>
 public static class DxvkManager
 {
-    private static readonly string[] D3D9Dlls = { "d3d9.dll" };
     private static readonly string[] D3D11Dlls = { "d3d11.dll", "dxgi.dll" };
 
     private sealed class Manifest
@@ -55,7 +54,6 @@ public static class DxvkManager
 
     public static string[] DllsFor(DxvkApi api) => api switch
     {
-        DxvkApi.D3D9 => D3D9Dlls,
         DxvkApi.D3D11 => D3D11Dlls,
         _ => Array.Empty<string>(),
     };
@@ -63,21 +61,14 @@ public static class DxvkManager
     public static DxvkStatus GetStatus(GameInstall g)
     {
         var m = Load(g);
-        bool d9 = IsOurs(m, "d3d9.dll") && File.Exists(Path.Combine(g.Root, "d3d9.dll"));
         bool d11 = IsOurs(m, "d3d11.dll") && IsOurs(m, "dxgi.dll")
                    && File.Exists(Path.Combine(g.Root, "d3d11.dll")) && File.Exists(Path.Combine(g.Root, "dxgi.dll"));
-        string label = (d9, d11) switch
-        {
-            (true, true) => "DXVK installed for D3D9 and D3D11" + Ver(m),
-            (true, false) => "DXVK installed for D3D9" + Ver(m),
-            (false, true) => "DXVK installed for D3D11" + Ver(m),
-            _ => "DXVK not installed (game uses Microsoft's Direct3D)",
-        };
-        // a d3d9/d3d11/dxgi.dll we did not install: ReShade, SpecialK, another DXVK...
-        var foreign = new[] { "d3d9.dll", "d3d11.dll", "dxgi.dll" }
+        string label = d11 ? "DXVK installed (Vulkan)" + Ver(m) : "DXVK not installed (game uses Microsoft's Direct3D 11)";
+        // a d3d11/dxgi.dll we did not install: ReShade, SpecialK, another DXVK...
+        var foreign = new[] { "d3d11.dll", "dxgi.dll" }
             .Where(f => File.Exists(Path.Combine(g.Root, f)) && !IsOurs(m, f)).ToList();
         if (foreign.Count > 0) label += $"  —  note: {string.Join(", ", foreign)} in the game folder was not installed by this launcher";
-        return new DxvkStatus { D3D9Present = d9, D3D11Present = d11, Label = label };
+        return new DxvkStatus { D3D11Present = d11, Label = label };
     }
 
     private static string Ver(Manifest? m) => string.IsNullOrEmpty(m?.Version) ? "" : " (" + m!.Version + ")";
@@ -149,7 +140,7 @@ public static class DxvkManager
 
     /// <summary>
     /// Installs the DLLs for <paramref name="api"/>. DLLs of the other API are removed if we installed them.
-    /// A d3d9/d3d11/dxgi.dll that is not ours (ReShade etc.) is backed up first, and only if replaceForeign is true.
+    /// A d3d11/dxgi.dll that is not ours (ReShade etc.) is backed up first, and only if replaceForeign is true.
     /// </summary>
     public static void Apply(GameInstall g, DxvkApi api, string? archive, string? version, bool replaceForeign)
     {
@@ -224,14 +215,16 @@ public static class DxvkManager
     public static string CacheDir => Path.Combine(LauncherConfig.Dir, "dxvk-cache");
     public static string LogDir => Path.Combine(LauncherConfig.Dir, "dxvk-logs");
 
-    /// <summary>Environment variables to set on the game process. DXVK reads these itself; nothing is written to the game folder.</summary>
-    public static Dictionary<string, string> BuildEnvironment(string hud, string frameRate, string confText, string logLevel)
+    /// <summary>
+    /// Environment variables for the game process. DXVK reads these itself; nothing is written to the game folder.
+    /// DXVK's own HUD is never enabled and its frame cap is always 0 (off): the frame limit comes only from V-Patch's fps_limit.
+    /// </summary>
+    public static Dictionary<string, string> BuildEnvironment(string confText, string logLevel)
     {
         var env = new Dictionary<string, string>();
         Directory.CreateDirectory(CacheDir);
         env["DXVK_STATE_CACHE_PATH"] = CacheDir;               // pipeline cache survives game updates / reinstalls
-        if (!string.IsNullOrWhiteSpace(hud)) env["DXVK_HUD"] = hud.Trim();
-        if (int.TryParse(frameRate, out var fps) && fps > 0) env["DXVK_FRAME_RATE"] = fps.ToString();
+        env["DXVK_FRAME_RATE"] = "0";                          // never cap here
         if (!string.IsNullOrWhiteSpace(logLevel) && !logLevel.Equals("default", StringComparison.OrdinalIgnoreCase))
         {
             Directory.CreateDirectory(LogDir);
@@ -241,7 +234,10 @@ public static class DxvkManager
         if (!string.IsNullOrWhiteSpace(confText))
         {
             Directory.CreateDirectory(LauncherConfig.Dir);
-            File.WriteAllText(ConfFile, confText.Replace("\r\n", "\n"));
+            // a cap set here would fight V-Patch's fps_limit, so any maxFrameRate line is dropped
+            var lines = confText.Replace("\r\n", "\n").Split('\n')
+                .Where(l => !l.Contains("maxFrameRate", StringComparison.OrdinalIgnoreCase));
+            File.WriteAllText(ConfFile, string.Join("\n", lines));
             env["DXVK_CONFIG_FILE"] = ConfFile;
         }
         return env;

@@ -7,9 +7,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LANoireLauncher</AssemblyName>
     <RootNamespace>LANoireLauncher</RootNamespace>
+    <ApplicationIcon>Assets\lanoire.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\lanoire.ico" />
+    <Resource Include="Assets\lanoire.png" />
   </ItemGroup>
 </Project>
