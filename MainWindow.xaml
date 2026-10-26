@@ -1,0 +1,147 @@
+<Window x:Class="LANoireLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="L.A. Noire Launcher" Height="660" Width="780" WindowStartupLocation="CenterScreen">
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+      <TextBlock Text="Profile:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+      <ComboBox x:Name="ProfileBox" Width="200" IsEditable="True"/>
+      <Button Content="Load" Click="LoadProfile_Click" Margin="6,0,0,0" Padding="10,2"/>
+      <Button Content="Save" Click="SaveProfile_Click" Margin="4,0,0,0" Padding="10,2"/>
+      <Button Content="Delete" Click="DeleteProfile_Click" Margin="4,0,0,0" Padding="10,2"/>
+    </StackPanel>
+    <Border DockPanel.Dock="Bottom" BorderBrush="Gray" BorderThickness="0,1,0,0" Padding="0,6,0,0" Margin="0,8,0,0">
+      <TextBlock x:Name="StatusText" TextWrapping="Wrap" MinHeight="34"/>
+    </Border>
+    <TabControl>
+      <TabItem Header="Play">
+        <StackPanel Margin="12">
+          <TextBlock Text="Game folder (your own L.A. Noire install)" FontWeight="SemiBold"/>
+          <DockPanel Margin="0,4,0,8">
+            <Button DockPanel.Dock="Right" Content="Auto-detect" Click="AutoDetect_Click" Margin="4,0,0,0" Padding="10,2"/>
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseGame_Click" Margin="6,0,0,0" Padding="10,2"/>
+            <TextBox x:Name="GamePathBox" IsReadOnly="True"/>
+          </DockPanel>
+          <TextBlock x:Name="InfoText" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+          <TextBlock Text="Launch options" FontWeight="SemiBold"/>
+          <StackPanel Orientation="Horizontal" Margin="0,6,0,6">
+            <TextBlock Text="Force resolution (-res W H):" VerticalAlignment="Center" Width="200"/>
+            <TextBox x:Name="ResWBox" Width="70"/>
+            <TextBlock Text=" × " VerticalAlignment="Center"/>
+            <TextBox x:Name="ResHBox" Width="70"/>
+            <TextBlock Text="  (leave empty to use settings.ini)" VerticalAlignment="Center" Opacity="0.7"/>
+          </StackPanel>
+          <CheckBox x:Name="IgnoreFocusBox" Content="Keep running when alt-tabbed (-ignorefocus)" Margin="0,4,0,4"/>
+          <StackPanel Orientation="Horizontal" Margin="0,6,0,14">
+            <TextBlock Text="Extra arguments:" VerticalAlignment="Center" Width="200"/>
+            <TextBox x:Name="ExtraArgsBox" Width="360"/>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Apply and Launch" Click="Launch_Click" Padding="22,8" FontWeight="Bold"/>
+            <Button Content="Apply only" Click="Apply_Click" Padding="14,8" Margin="8,0,0,0"/>
+          </StackPanel>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="V-Patch">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="12">
+            <TextBlock x:Name="PatchStatusText" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <Button Content="Install from zip…" Click="InstallZip_Click" Padding="10,3"/>
+              <Button Content="Download latest" Click="DownloadPatch_Click" Padding="10,3" Margin="6,0,0,0"/>
+              <Button Content="Uninstall" Click="UninstallPatch_Click" Padding="10,3" Margin="6,0,0,0"/>
+            </StackPanel>
+            <StackPanel x:Name="PatchPanel"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,12,0,0"
+                       Text="V-Patch © VaanaCZ, CC BY-NC 4.0 (non-commercial). Bundled loader: Ultimate ASI Loader © ThirteenAG, MIT. Not affiliated with Rockstar Games or Take-Two."/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Vulkan (DXVK)">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="12">
+            <TextBlock x:Name="DxvkStatusText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,10"
+                       Text="DXVK translates the game's Direct3D calls to Vulkan. Pick the API the game actually renders with (V-Patch can force DirectX 11), install DXVK, then launch from this launcher."/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <TextBlock Text="Translate:" Width="120" VerticalAlignment="Center"/>
+              <ComboBox x:Name="DxvkApiBox" Width="260" SelectedIndex="0">
+                <ComboBoxItem Content="Off (native Direct3D)"/>
+                <ComboBoxItem Content="Direct3D 9 → Vulkan"/>
+                <ComboBoxItem Content="Direct3D 11 → Vulkan"/>
+              </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <TextBlock Text="DXVK version:" Width="120" VerticalAlignment="Center"/>
+              <ComboBox x:Name="DxvkVersionBox" Width="140" IsEditable="True" Text="latest">
+                <ComboBoxItem Content="latest"/>
+                <ComboBoxItem Content="v1.10.3"/>
+              </ComboBox>
+              <TextBlock Text="  v1.10.3 = older GPUs without Vulkan 1.3" VerticalAlignment="Center" Opacity="0.7"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+              <Button Content="Install from archive…" Click="DxvkInstallArchive_Click" Padding="10,3"/>
+              <Button Content="Download" Click="DxvkDownload_Click" Padding="10,3" Margin="6,0,0,0"/>
+              <Button Content="Uninstall" Click="DxvkUninstall_Click" Padding="10,3" Margin="6,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock Text="Runtime options (applied at launch via environment variables)" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,6">
+              <TextBlock Text="HUD (DXVK_HUD):" Width="200" VerticalAlignment="Center"/>
+              <ComboBox x:Name="DxvkHudBox" Width="260" IsEditable="True">
+                <ComboBoxItem Content=""/>
+                <ComboBoxItem Content="fps"/>
+                <ComboBoxItem Content="fps,frametimes"/>
+                <ComboBoxItem Content="fps,frametimes,gpuload,memory,compiler"/>
+                <ComboBoxItem Content="full"/>
+              </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+              <TextBlock Text="Frame rate cap (DXVK_FRAME_RATE):" Width="200" VerticalAlignment="Center"/>
+              <TextBox x:Name="DxvkFpsBox" Width="70"/>
+              <TextBlock Text="  0/empty = off. Prefer one limiter: this or V-Patch's fps_limit." VerticalAlignment="Center" Opacity="0.7"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+              <TextBlock Text="DXVK log level:" Width="200" VerticalAlignment="Center"/>
+              <ComboBox x:Name="DxvkLogBox" Width="120" SelectedIndex="0">
+                <ComboBoxItem Content="default"/>
+                <ComboBoxItem Content="none"/>
+                <ComboBoxItem Content="error"/>
+                <ComboBoxItem Content="warn"/>
+                <ComboBoxItem Content="info"/>
+                <ComboBoxItem Content="debug"/>
+              </ComboBox>
+              <TextBlock Text="  logs go to %AppData%\LANoireLauncher\dxvk-logs" VerticalAlignment="Center" Opacity="0.7"/>
+            </StackPanel>
+            <TextBlock Text="Extra dxvk.conf lines (key = value, one per line; optional)" Margin="0,8,0,2"/>
+            <TextBox x:Name="DxvkConfBox" AcceptsReturn="True" Height="90" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <TextBlock x:Name="DxvkCacheText" VerticalAlignment="Center" Width="320"/>
+              <Button Content="Clear shader/pipeline cache" Click="DxvkClearCache_Click" Padding="10,3"/>
+            </StackPanel>
+            <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,12,0,0"
+                       Text="DXVK © Philip Rebohle and contributors, zlib licence. Not affiliated with Rockstar Games or Take-Two."/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Graphics (settings.ini)">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="12">
+            <DockPanel Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseSettings_Click" Margin="6,0,0,0" Padding="10,2"/>
+              <TextBox x:Name="SettingsPathBox" IsReadOnly="True"/>
+            </DockPanel>
+            <StackPanel x:Name="GfxPanel"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

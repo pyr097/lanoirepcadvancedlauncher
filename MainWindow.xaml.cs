@@ -1,0 +1,415 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Text.RegularExpressions;
+using System.Windows;
+using Microsoft.Win32;
+using LANoireLauncher.Core;
+
+namespace LANoireLauncher;
+
+public partial class MainWindow : Window
+{
+    private const string GfxSection = "LANSettings";
+    private readonly LauncherConfig _cfg = LauncherConfig.Load();
+    private GameInstall? _game;
+    private readonly List<Field> _patch = new();
+    private readonly List<Field> _gfx = new();
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        BuildFields();
+        Loaded += async (_, _) => await InitAsync();
+    }
+
+    // ---------- field definitions ----------
+    private static string? PosInt(string v) => int.TryParse(v, out var n) && n >= 0 ? null : "must be a whole number (0 or more)";
+    private static string? PosFloat(string v) => double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && d > 0 ? null : "must be a number above 0 (use a dot, e.g. 1.2)";
+    private static string? ResFmt(string v) => Regex.IsMatch(v, @"^\d+x\d+(x\d+)?$") ? null : "use WIDTHxHEIGHTxHZ, e.g. 1920x1080x60";
+
+    private void BuildFields()
+    {
+        _patch.AddRange(new[]
+        {
+            new Field("fixes", "fps_unlock", "Unlock FPS cap and apply high-FPS fixes", FieldKind.Flag01, "Turn off if an FPS bug blocks progress."),
+            new Field("fixes", "resolution_unlock", "Allow any resolution", FieldKind.Flag01, "Removes resolution filtering."),
+            new Field("fixes", "aspect_correction", "Aspect ratio / FoV / UI correction", FieldKind.Flag01, "Removes black bars on non-16:9."),
+            new Field("options", "fps_limit", "FPS limit (0 = none)", FieldKind.Text, "Needs FPS unlock enabled.", null, PosInt),
+            new Field("options", "fov_multiplier", "FoV multiplier (1.0 = default)", FieldKind.Text, "Needs aspect correction enabled.", null, PosFloat),
+            new Field("options", "borderless_window", "Borderless window", FieldKind.Flag01, "Requires Fullscreen = NO in settings.ini."),
+            new Field("options", "skip_logos_and_legals", "Skip company logos and legal screens", FieldKind.Flag01, "Faster startup."),
+        });
+
+        // NOTE: dropdown contents are best guesses; the boxes are editable. Verify against the game's own options.
+        var quality = new[] { "Quality", "Balanced", "Performance" };
+        _gfx.AddRange(new[]
+        {
+            new Field(GfxSection, "Fullscreen", "Fullscreen", FieldKind.FlagYesNo, "Must be off for borderless."),
+            new Field(GfxSection, "Resolution", "Resolution (WxHxHz)", FieldKind.Text, "e.g. 1920x1080x60", null, ResFmt),
+            new Field(GfxSection, "Antialiasing", "Antialiasing", FieldKind.Combo, "0 = off", new[] { "0", "2", "4", "8" }),
+            new Field(GfxSection, "Anisotropic Filtering", "Anisotropic filtering", FieldKind.Combo, "", new[] { "0", "2", "4", "8", "16" }),
+            new Field(GfxSection, "SSAO", "SSAO", FieldKind.FlagYesNo, ""),
+            new Field(GfxSection, "Facial Quality", "Facial quality", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "Texture Detail", "Texture detail", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "Shadow Detail", "Shadow detail", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "Lighting Detail", "Lighting detail", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "Environment Map Detail", "Environment map detail", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "LOD Quality", "LOD quality", FieldKind.Combo, "", quality),
+            new Field(GfxSection, "Interface Size", "Interface size", FieldKind.Combo, "", new[] { "Normal" }),
+            new Field(GfxSection, "Threading", "Threading", FieldKind.Combo, "", new[] { "Multi", "Single" }),
+            new Field(GfxSection, "Renderer", "Renderer", FieldKind.Combo, "", new[] { "DirectX 9", "DirectX 11" }),
+            new Field(GfxSection, "Command Line", "Command line (game's own)", FieldKind.Text, "Stored in settings.ini by the game."),
+        });
+
+        foreach (var f in _patch) PatchPanel.Children.Add(f.Build());
+        foreach (var f in _gfx) GfxPanel.Children.Add(f.Build());
+    }
+
+    // ---------- init / refresh ----------
+    private async Task InitAsync()
+    {
+        var path = _cfg.GamePath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(Path.Combine(path, "LaNoire.exe"))) path = GameInstall.AutoDetect();
+        if (path != null) await OpenGameAsync(path);
+        else { InfoText.Text = "No game selected. Use Browse… and pick LaNoire.exe."; Status("Select your L.A. Noire folder to begin."); }
+        RefreshProfiles();
+    }
+
+    private async Task OpenGameAsync(string path)
+    {
+        _game = GameInstall.Open(path, out var err);
+        if (_game == null) { Status(err); return; }
+        _cfg.GamePath = _game.Root;
+
+        if (string.IsNullOrEmpty(_cfg.SettingsPath) || !File.Exists(_cfg.SettingsPath))
+            _cfg.SettingsPath = _game.SettingsCandidates().FirstOrDefault(File.Exists);
+        _cfg.Save();
+
+        var sha = await Task.Run(() => GameInstall.Sha256Of(_game.ExePath));
+        GamePathBox.Text = _game.Root;
+        InfoText.Text = $"LaNoire.exe  version {_game.FileVersion}  (build {_game.Build})\n" +
+                        $"SHA-256: {sha}\n" +
+                        (_game.IsSupported ? "Build is supported by V-Patch 2.0." : "⚠ Build is NOT in V-Patch's supported list (2617 / 2663 / 2675). The patch may not work.");
+        LoadFromDisk();
+    }
+
+    private void LoadFromDisk()
+    {
+        if (_game == null) return;
+        var ps = PatchManager.GetStatus(_game);
+        PatchStatusText.Text = ps.Label + (ps.Usable && !ps.IniPresent ? "  —  run the game once to generate lanvp.ini" : "");
+        if (ps.IniPresent)
+        {
+            var ini = IniDocument.Load(_game.LanvpIni, '=');
+            foreach (var f in _patch) f.SetValue(ini.Get(f.Key, f.Section));
+        }
+        RefreshDxvk();
+        SettingsPathBox.Text = _cfg.SettingsPath ?? "(not found — use Browse…)";
+        if (!string.IsNullOrEmpty(_cfg.SettingsPath) && File.Exists(_cfg.SettingsPath))
+        {
+            var ini = IniDocument.Load(_cfg.SettingsPath, ':');
+            foreach (var f in _gfx) f.SetValue(ini.Get(f.Key, f.Section));
+        }
+    }
+
+    private void Status(string s) => StatusText.Text = s;
+
+    // ---------- browse ----------
+    private async void BrowseGame_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Title = "Select LaNoire.exe", Filter = "LaNoire.exe|LaNoire.exe" };
+        if (dlg.ShowDialog() == true) await OpenGameAsync(dlg.FileName);
+    }
+
+    private async void AutoDetect_Click(object sender, RoutedEventArgs e)
+    {
+        var p = GameInstall.AutoDetect();
+        if (p == null) Status("Could not find an install in the usual places. Use Browse…");
+        else await OpenGameAsync(p);
+    }
+
+    private void BrowseSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Title = "Select the game's settings.ini", Filter = "settings.ini|settings.ini" };
+        if (dlg.ShowDialog() != true) return;
+        _cfg.SettingsPath = dlg.FileName; _cfg.Save(); LoadFromDisk();
+    }
+
+    // ---------- patch management ----------
+    private bool NeedGame() { if (_game == null) { Status("Select the game folder first."); return false; } return true; }
+
+    private void TryInstall(string zip)
+    {
+        try { PatchManager.Install(_game!, zip, false); }
+        catch (LoaderConflictException)
+        {
+            var r = MessageBox.Show("A different dinput8.dll is already in the game folder (ReShade or another mod?).\n\n" +
+                "Replace it? The original will be backed up and restored if you uninstall V-Patch.",
+                "dinput8.dll conflict", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
+            PatchManager.Install(_game!, zip, true);
+        }
+        LoadFromDisk(); Status("V-Patch installed. Run the game once to generate lanvp.ini if it is missing.");
+    }
+
+    private void InstallZip_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        var dlg = new OpenFileDialog { Title = "Select the V-Patch release zip", Filter = "Zip files|*.zip" };
+        if (dlg.ShowDialog() != true) return;
+        try { TryInstall(dlg.FileName); } catch (Exception ex) { Status("Install failed: " + ex.Message); }
+    }
+
+    private async void DownloadPatch_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        var ok = MessageBox.Show("Download the latest V-Patch release from github.com/VaanaCZ/LANVP and install it into your game folder?\n\n" +
+            "V-Patch is © VaanaCZ, licensed CC BY-NC 4.0 (non-commercial use).", "Download V-Patch", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (ok != MessageBoxResult.Yes) return;
+        try { Status("Downloading…"); var zip = await PatchManager.DownloadLatestAsync(); TryInstall(zip); File.Delete(zip); }
+        catch (Exception ex) { Status("Download/install failed: " + ex.Message); }
+    }
+
+    private void UninstallPatch_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        if (MessageBox.Show("Remove V-Patch files that this launcher installed?", "Uninstall", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        try { PatchManager.Uninstall(_game!); LoadFromDisk(); Status("V-Patch removed."); }
+        catch (Exception ex) { Status("Uninstall failed: " + ex.Message); }
+    }
+
+    // ---------- DXVK / Vulkan ----------
+    private DxvkApi SelectedApi => (DxvkApi)Math.Max(0, DxvkApiBox.SelectedIndex);
+
+    private string DxvkVersionText => string.IsNullOrWhiteSpace(DxvkVersionBox.Text) ? "latest" : DxvkVersionBox.Text.Trim();
+
+    private static string ComboText(System.Windows.Controls.ComboBox b) =>
+        b.SelectedItem is System.Windows.Controls.ComboBoxItem i ? (i.Content?.ToString() ?? "") : b.Text;
+
+    private void RefreshDxvk()
+    {
+        if (_game == null) return;
+        var st = DxvkManager.GetStatus(_game);
+        DxvkStatusText.Text = st.Label + (_game.Is64Bit ? "   [64-bit exe]" : "   [32-bit exe]");
+        DxvkCacheText.Text = $"Pipeline cache: {DxvkManager.CacheBytes() / 1048576.0:F1} MB";
+        if (st.D3D11Present) DxvkApiBox.SelectedIndex = 2;
+        else if (st.D3D9Present) DxvkApiBox.SelectedIndex = 1;
+    }
+
+    private void DxvkInstall(string archive, string? version)
+    {
+        var api = SelectedApi;
+        if (api == DxvkApi.Off) { Status("Choose Direct3D 9 or Direct3D 11 first, then install."); return; }
+        try { DxvkManager.Apply(_game!, api, archive, version, false); }
+        catch (LoaderConflictException ex)
+        {
+            var r = MessageBox.Show($"A different {ex.FileName} is already in the game folder (ReShade, SpecialK or another DXVK?).\n\n" +
+                "Replace it? The original is backed up and restored when you uninstall DXVK.",
+                "DLL conflict", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
+            DxvkManager.Apply(_game!, api, archive, version, true);
+        }
+        RefreshDxvk(); Status($"DXVK installed for {api}.");
+    }
+
+    private void DxvkInstallArchive_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        var dlg = new OpenFileDialog { Title = "Select a DXVK release archive", Filter = "DXVK archive|*.tar.gz;*.zip" };
+        if (dlg.ShowDialog() != true) return;
+        try { DxvkInstall(dlg.FileName, System.IO.Path.GetFileName(dlg.FileName)); }
+        catch (Exception ex) { Status("DXVK install failed: " + ex.Message); }
+    }
+
+    private async void DxvkDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        if (SelectedApi == DxvkApi.Off) { Status("Choose Direct3D 9 or Direct3D 11 first."); return; }
+        if (MessageBox.Show($"Download DXVK ({DxvkVersionText}) from github.com/doitsujin/dxvk and install it into your game folder?\n\nDXVK is licensed under the zlib licence.",
+                "Download DXVK", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            Status("Downloading DXVK…");
+            var (file, tag) = await DxvkManager.DownloadAsync(DxvkVersionText);
+            try { DxvkInstall(file, tag); } finally { File.Delete(file); }
+        }
+        catch (Exception ex) { Status("DXVK download/install failed: " + ex.Message); }
+    }
+
+    private void DxvkUninstall_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame() || GameInstall.IsRunning()) { if (_game != null) Status("Close L.A. Noire first."); return; }
+        try { DxvkManager.Uninstall(_game!); DxvkApiBox.SelectedIndex = 0; RefreshDxvk(); Status("DXVK removed; the game uses native Direct3D again."); }
+        catch (Exception ex) { Status("DXVK uninstall failed: " + ex.Message); }
+    }
+
+    private void DxvkClearCache_Click(object sender, RoutedEventArgs e)
+    {
+        try { DxvkManager.ClearCache(); RefreshDxvk(); Status("DXVK pipeline cache cleared. Expect stutter while it rebuilds."); }
+        catch (Exception ex) { Status("Could not clear cache: " + ex.Message); }
+    }
+
+    // lanvp.ini is generated by V-Patch, so the name of its "enforce DirectX 11" key is looked up in the file
+    // instead of being hard-coded. Returns null if no plausible key exists.
+    private static string? FindDx11Key(IniDocument ini) =>
+        ini.Keys().FirstOrDefault(k => Regex.IsMatch(k, @"(dx|d3d|directx).*11|11.*(dx|d3d|directx)", RegexOptions.IgnoreCase));
+
+    /// <summary>Makes V-Patch's renderer choice agree with the DXVK API so DXVK wraps the API the game really uses.</summary>
+    private string? SyncRendererWithVPatch()
+    {
+        var api = SelectedApi;
+        if (api == DxvkApi.Off || _game == null || !File.Exists(_game.LanvpIni)) return null;
+        var ini = IniDocument.Load(_game.LanvpIni, '=');
+        var key = FindDx11Key(ini);
+        if (key == null) return "No DirectX 11 option found in lanvp.ini - make sure the game renders with the API you picked.";
+        var want = api == DxvkApi.D3D11 ? "1" : "0";
+        if (ini.Get(key) == want) return null;
+        LauncherConfig.Backup(_game.LanvpIni);
+        ini.Set(key, want); ini.Save();
+        return $"Set '{key}' = {want} in lanvp.ini to match the DXVK API.";
+    }
+
+    private Dictionary<string, string> DxvkEnvironment() =>
+        SelectedApi == DxvkApi.Off ? new()
+        : DxvkManager.BuildEnvironment(DxvkHudBox.Text, DxvkFpsBox.Text, DxvkConfBox.Text, ComboText(DxvkLogBox));
+
+    // ---------- apply / launch ----------
+    private bool Apply()
+    {
+        if (!NeedGame()) return false;
+        if (GameInstall.IsRunning()) { Status("Close L.A. Noire before applying settings."); return false; }
+
+        foreach (var f in _patch.Concat(_gfx))
+        {
+            var err = f.Validate();
+            if (err != null) { Status(err); return false; }
+        }
+        var rw = ResWBox.Text.Trim(); var rh = ResHBox.Text.Trim();
+        if ((rw.Length > 0 || rh.Length > 0) && !(int.TryParse(rw, out var w) && int.TryParse(rh, out var h) && w > 0 && h > 0))
+        { Status("Force resolution needs both width and height as whole numbers."); return false; }
+
+        string Val(string key) => _patch.Concat(_gfx).First(f => f.Key == key).GetValue();
+        var ps = PatchManager.GetStatus(_game!);
+
+        if (ps.Usable && Val("borderless_window") == "1" && Val("Fullscreen") == "YES" && !string.IsNullOrEmpty(_cfg.SettingsPath))
+        {
+            if (MessageBox.Show("Borderless window only works when Fullscreen is NO in settings.ini.\n\nTurn Fullscreen off?",
+                "Borderless needs windowed mode", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                _gfx.First(f => f.Key == "Fullscreen").SetValue("NO");
+        }
+        if (double.TryParse(Val("fps_limit"), out var lim) && lim > 0 && Val("fps_unlock") == "0")
+            MessageBox.Show("FPS limit has no effect while FPS unlock is off.", "Heads-up");
+        if (Val("fov_multiplier") != "1.0" && Val("aspect_correction") == "0")
+            MessageBox.Show("FoV multiplier has no effect while aspect correction is off.", "Heads-up");
+
+        try
+        {
+            if (ps.IniPresent)
+            {
+                LauncherConfig.Backup(_game!.LanvpIni);
+                var ini = IniDocument.Load(_game.LanvpIni, '=');
+                foreach (var f in _patch) ini.Set(f.Key, f.GetValue(), f.Section);
+                ini.Save();
+            }
+            if (!string.IsNullOrEmpty(_cfg.SettingsPath) && File.Exists(_cfg.SettingsPath))
+            {
+                LauncherConfig.Backup(_cfg.SettingsPath);
+                var ini = IniDocument.Load(_cfg.SettingsPath, ':');
+                foreach (var f in _gfx) ini.Set(f.Key, f.GetValue(), f.Section);
+                ini.Save();
+            }
+        }
+        catch (Exception ex) { Status("Could not write settings: " + ex.Message); return false; }
+
+        string note = "";
+        try
+        {
+            var ds = DxvkManager.GetStatus(_game!);
+            if (SelectedApi != DxvkApi.Off || ds.D3D9Present || ds.D3D11Present)
+                DxvkManager.Apply(_game!, SelectedApi, null, null, false);   // switches the DLL set or turns DXVK off; never installs new files
+            if (SyncRendererWithVPatch() is { } n) note = " " + n;
+            RefreshDxvk();
+        }
+        catch (Exception ex) { Status("DXVK: " + ex.Message); return false; }
+
+        Status("Settings applied (backups are in %AppData%\\LANoireLauncher\\backups)." + note);
+        return true;
+    }
+
+    private void Apply_Click(object sender, RoutedEventArgs e) => Apply();
+
+    private void Launch_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Apply()) return;
+        var args = new List<string>();
+        if (ResWBox.Text.Trim().Length > 0) args.Add($"-res {ResWBox.Text.Trim()} {ResHBox.Text.Trim()}");
+        if (IgnoreFocusBox.IsChecked == true) args.Add("-ignorefocus");
+        if (ExtraArgsBox.Text.Trim().Length > 0) args.Add(ExtraArgsBox.Text.Trim());
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = _game!.ExePath,
+                WorkingDirectory = _game.Root,
+                Arguments = string.Join(" ", args),
+                UseShellExecute = false,
+            };
+            foreach (var kv in DxvkEnvironment()) psi.Environment[kv.Key] = kv.Value;
+            Process.Start(psi);
+            Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK, " + SelectedApi + "]" : ""));
+        }
+        catch (Exception ex) { Status("Launch failed: " + ex.Message); }
+    }
+
+    // ---------- profiles ----------
+    private void RefreshProfiles()
+    {
+        ProfileBox.Items.Clear();
+        foreach (var p in _cfg.Profiles) ProfileBox.Items.Add(p.Name);
+    }
+
+    private void SaveProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var name = ProfileBox.Text.Trim();
+        if (name.Length == 0) { Status("Type a profile name first."); return; }
+        _cfg.Profiles.RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        _cfg.Profiles.Add(new Profile
+        {
+            Name = name,
+            Patch = _patch.ToDictionary(f => f.Key, f => f.GetValue()),
+            Graphics = _gfx.ToDictionary(f => f.Key, f => f.GetValue()),
+            ResW = ResWBox.Text, ResH = ResHBox.Text,
+            IgnoreFocus = IgnoreFocusBox.IsChecked == true, ExtraArgs = ExtraArgsBox.Text,
+            Dxvk = new()
+            {
+                ["Api"] = SelectedApi.ToString(), ["Hud"] = DxvkHudBox.Text, ["Fps"] = DxvkFpsBox.Text,
+                ["Log"] = ComboText(DxvkLogBox), ["Conf"] = DxvkConfBox.Text,
+            },
+        });
+        _cfg.Save(); RefreshProfiles(); ProfileBox.Text = name; Status($"Profile '{name}' saved.");
+    }
+
+    private void LoadProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var p = _cfg.Profiles.FirstOrDefault(x => x.Name.Equals(ProfileBox.Text.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (p == null) { Status("No such profile."); return; }
+        foreach (var f in _patch) if (p.Patch.TryGetValue(f.Key, out var v)) f.SetValue(v);
+        foreach (var f in _gfx) if (p.Graphics.TryGetValue(f.Key, out var v)) f.SetValue(v);
+        if (p.Dxvk.TryGetValue("Api", out var api) && Enum.TryParse<DxvkApi>(api, out var a)) DxvkApiBox.SelectedIndex = (int)a;
+        DxvkHudBox.Text = p.Dxvk.GetValueOrDefault("Hud", "");
+        DxvkFpsBox.Text = p.Dxvk.GetValueOrDefault("Fps", "");
+        DxvkConfBox.Text = p.Dxvk.GetValueOrDefault("Conf", "");
+        var lg = p.Dxvk.GetValueOrDefault("Log", "default");
+        for (int i = 0; i < DxvkLogBox.Items.Count; i++)
+            if (DxvkLogBox.Items[i] is System.Windows.Controls.ComboBoxItem it && (it.Content?.ToString() ?? "") == lg) DxvkLogBox.SelectedIndex = i;
+        ResWBox.Text = p.ResW; ResHBox.Text = p.ResH; IgnoreFocusBox.IsChecked = p.IgnoreFocus; ExtraArgsBox.Text = p.ExtraArgs;
+        Status($"Profile '{p.Name}' loaded into the form. Press Apply to write it.");
+    }
+
+    private void DeleteProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var n = ProfileBox.Text.Trim();
+        if (_cfg.Profiles.RemoveAll(p => p.Name.Equals(n, StringComparison.OrdinalIgnoreCase)) > 0)
+        { _cfg.Save(); RefreshProfiles(); ProfileBox.Text = ""; Status($"Profile '{n}' deleted."); }
+    }
+}
