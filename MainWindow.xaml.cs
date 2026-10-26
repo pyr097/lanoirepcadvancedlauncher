@@ -79,7 +79,7 @@ public partial class MainWindow : Window
             new Field("fixes", "aspect_correction", "Aspect ratio / FoV / UI correction", FieldKind.Flag01, "Removes black bars on non-16:9."),
             new Field("options", "fps_limit", "FPS limit (0 = none)", FieldKind.Text, "Needs FPS unlock enabled.", null, PosInt),
             new Field("options", "fov_multiplier", "FoV multiplier (1.0 = default)", FieldKind.Text, "Needs aspect correction enabled.", null, PosFloat),
-            new Field("options", "borderless_window", "Borderless window", FieldKind.Flag01, "Requires Fullscreen = NO in settings.ini."),
+            new Field("options", "borderless_window", "Borderless window", FieldKind.Flag01, "Off = regular window with a title bar. The launcher always runs the game windowed."),
             new Field("options", "skip_logos_and_legals", "Skip company logos and legal screens", FieldKind.Flag01, "Faster startup."),
         });
 
@@ -87,7 +87,6 @@ public partial class MainWindow : Window
         var quality = new[] { "Quality", "Balanced", "Performance" };
         _gfx.AddRange(new[]
         {
-            new Field(GfxSection, "Fullscreen", "Fullscreen", FieldKind.FlagYesNo, "Must be off for borderless."),
             new Field(GfxSection, "Resolution", "Resolution (WxHxHz)", FieldKind.Text, "e.g. 1920x1080x60", null, ResFmt),
             new Field(GfxSection, "Antialiasing", "Antialiasing", FieldKind.Combo, "0 = off", new[] { "0", "2", "4", "8" }),
             new Field(GfxSection, "Anisotropic Filtering", "Anisotropic filtering", FieldKind.Combo, "", new[] { "0", "2", "4", "8", "16" }),
@@ -116,7 +115,6 @@ public partial class MainWindow : Window
         else { InfoText.Text = "No game selected. Use Browse… and pick LaNoire.exe."; Status("Select your L.A. Noire folder to begin."); }
         RefreshProfiles();
         OverlayBox.IsChecked = _cfg.OverlayEnabled;
-        RefreshOverlayTool();
     }
 
     private async Task OpenGameAsync(string path)
@@ -331,12 +329,6 @@ public partial class MainWindow : Window
         string Val(string key) => _patch.Concat(_gfx).First(f => f.Key == key).GetValue();
         var ps = PatchManager.GetStatus(_game!);
 
-        if (ps.Usable && Val("borderless_window") == "1" && Val("Fullscreen") == "YES" && !string.IsNullOrEmpty(_cfg.SettingsPath))
-        {
-            if (MessageBox.Show("Borderless window only works when Fullscreen is NO in settings.ini.\n\nTurn Fullscreen off?",
-                "Borderless needs windowed mode", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                _gfx.First(f => f.Key == "Fullscreen").SetValue("NO");
-        }
         if (double.TryParse(Val("fps_limit"), out var lim) && lim > 0 && Val("fps_unlock") == "0")
             MessageBox.Show("FPS limit has no effect while FPS unlock is off.", "Heads-up");
         if (Val("fov_multiplier") != "1.0" && Val("aspect_correction") == "0")
@@ -357,6 +349,7 @@ public partial class MainWindow : Window
                 var ini = IniDocument.Load(_cfg.SettingsPath, ':');
                 foreach (var f in _gfx) ini.Set(f.Key, f.GetValue(), f.Section);
                 if (ini.Get("Renderer", GfxSection) != null) ini.Set("Renderer", "DirectX 11", GfxSection);
+                ini.Set("Fullscreen", "NO", GfxSection);                  // exclusive fullscreen is not offered: windowed or borderless only
                 ini.Save();
             }
         }
@@ -382,6 +375,7 @@ public partial class MainWindow : Window
     private void Launch_Click(object sender, RoutedEventArgs e)
     {
         if (!Apply()) return;
+        Process? game;
         var args = new List<string>();
         if (ResWBox.Text.Trim().Length > 0) args.Add($"-res {ResWBox.Text.Trim()} {ResHBox.Text.Trim()}");
         if (IgnoreFocusBox.IsChecked == true) args.Add("-ignorefocus");
@@ -395,60 +389,33 @@ public partial class MainWindow : Window
                 Arguments = string.Join(" ", args),
                 UseShellExecute = false,
             };
-            psi.Environment.Remove("DXVK_HUD");   // DXVK's own HUD is never shown; use the launcher overlay instead
+            bool wantFps = OverlayBox.IsChecked == true, dxvk = SelectedApi != DxvkApi.Off;
+            if (wantFps && dxvk) psi.Environment["DXVK_HUD"] = "fps";   // DXVK draws its own tiny counter
+            else psi.Environment.Remove("DXVK_HUD");
             foreach (var kv in DxvkEnvironment()) psi.Environment[kv.Key] = kv.Value;
-            Process.Start(psi);
+            game = Process.Start(psi);
             Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK]" : "   [DirectX 11]"));
         }
         catch (Exception ex) { Status("Launch failed: " + ex.Message); return; }
-        if (OverlayBox.IsChecked == true) _ = StartOverlayAsync();
+        if (game != null && OverlayBox.IsChecked == true && SelectedApi == DxvkApi.Off) StartOverlay(game);
     }
 
     // ---------- FPS overlay ----------
-    private void RefreshOverlayTool()
-    {
-        var ok = !string.IsNullOrEmpty(_cfg.PresentMonPath) && File.Exists(_cfg.PresentMonPath);
-        OverlayPmText.Text = ok ? "PresentMon ready: " + _cfg.PresentMonPath : "PresentMon not installed (needed for the overlay).";
-    }
-
+    // DXVK on  -> DXVK's built-in HUD ("fps"), set as an environment variable at launch.
+    // DXVK off -> a small launcher-drawn badge fed by Windows' DXGI present events.
     private void OverlayBox_Click(object sender, RoutedEventArgs e)
     {
         _cfg.OverlayEnabled = OverlayBox.IsChecked == true;
         _cfg.Save();
         if (!_cfg.OverlayEnabled) { _overlay?.Dispose(); _overlay = null; OverlayMsgText.Text = ""; }
-        else if (string.IsNullOrEmpty(_cfg.PresentMonPath) || !File.Exists(_cfg.PresentMonPath))
-            OverlayMsgText.Text = "Download PresentMon (or pick your own PresentMon.exe) so the overlay can work.";
     }
 
-    private async void PmDownload_Click(object sender, RoutedEventArgs e)
-    {
-        if (MessageBox.Show("Download the latest PresentMon console tool from github.com/GameTechDev/PresentMon?\n\nPresentMon is © Intel, MIT licence.",
-                "Download PresentMon", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-        try
-        {
-            OverlayMsgText.Text = "Downloading PresentMon…";
-            _cfg.PresentMonPath = await FrameMonitor.DownloadAsync();
-            _cfg.Save(); RefreshOverlayTool(); OverlayMsgText.Text = "PresentMon installed.";
-        }
-        catch (Exception ex) { OverlayMsgText.Text = "Download failed: " + ex.Message; }
-    }
-
-    private void PmBrowse_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new OpenFileDialog { Title = "Select PresentMon console exe", Filter = "PresentMon*.exe|PresentMon*.exe|Executables|*.exe" };
-        if (dlg.ShowDialog() != true) return;
-        _cfg.PresentMonPath = dlg.FileName; _cfg.Save(); RefreshOverlayTool();
-    }
-
-    private async Task StartOverlayAsync()
+    private void StartOverlay(Process game)
     {
         _overlay?.Dispose(); _overlay = null;
-        var exe = _cfg.PresentMonPath;
-        if (string.IsNullOrEmpty(exe) || !File.Exists(exe)) { OverlayMsgText.Text = "Overlay skipped: PresentMon is not installed."; return; }
-        OverlayMsgText.Text = "Starting overlay…";
-        var (mon, err) = await FrameMonitor.StartAsync(exe, "LaNoire.exe");
-        if (mon == null) { OverlayMsgText.Text = "Overlay: " + err; return; }
-        var ctl = new OverlayController(mon, msg => OverlayMsgText.Text = msg);
+        var counter = FpsCounter.TryStart(game.Id, out var err);
+        if (counter == null) { OverlayMsgText.Text = err ?? ""; return; }
+        var ctl = new OverlayController(game, counter, msg => OverlayMsgText.Text = msg);
         ctl.Finished += () => { if (_overlay == ctl) _overlay = null; };
         _overlay = ctl;
     }
@@ -493,7 +460,7 @@ public partial class MainWindow : Window
         for (int i = 0; i < DxvkLogBox.Items.Count; i++)
             if (DxvkLogBox.Items[i] is System.Windows.Controls.ComboBoxItem it && (it.Content?.ToString() ?? "") == lg) DxvkLogBox.SelectedIndex = i;
         ResWBox.Text = p.ResW; ResHBox.Text = p.ResH; IgnoreFocusBox.IsChecked = p.IgnoreFocus; ExtraArgsBox.Text = p.ExtraArgs;
-        Status($"Profile '{p.Name}' loaded into the form. Press Apply to write it.");
+        Status($"Profile '{p.Name}' loaded into the form. Press Save Options to write it.");
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)

@@ -8,10 +8,28 @@
     <AssemblyName>LANoireLauncher</AssemblyName>
     <RootNamespace>LANoireLauncher</RootNamespace>
     <ApplicationIcon>Assets\lanoire.ico</ApplicationIcon>
+
+    <!-- app identity (shows in Explorer > Properties and Task Manager) -->
+    <Product>L.A. Noire Advanced Launcher</Product>
+    <AssemblyTitle>L.A. Noire Advanced Launcher</AssemblyTitle>
+    <Description>L.A. Noire Advanced Launcher</Description>
+
+    <!-- lean output: one exe, no pdb, no language folders -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.16" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\lanoire.ico" />

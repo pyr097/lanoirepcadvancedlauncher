@@ -217,7 +217,7 @@ public static class DxvkManager
 
     /// <summary>
     /// Environment variables for the game process. DXVK reads these itself; nothing is written to the game folder.
-    /// DXVK's own HUD is never enabled and its frame cap is always 0 (off): the frame limit comes only from V-Patch's fps_limit.
+    /// DXVK's HUD is only switched on by the launcher's FPS option (DXVK_HUD=fps at launch) and its frame cap is always 0 (off): the frame limit comes only from V-Patch's fps_limit.
     /// </summary>
     public static Dictionary<string, string> BuildEnvironment(string confText, string logLevel)
     {
