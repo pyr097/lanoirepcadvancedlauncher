@@ -59,7 +59,7 @@ public sealed class OverlayController : IDisposable
         }
         else _win.SetTagOnly();
         if (!_win.IsVisible) _win.Show();
-        if (_counter != null) _win.PlaceTopLeft(hwnd, 8, 4); else _win.PlaceTopRight(hwnd, 8, 4);
+        if (_counter != null) _win.PlaceTopLeft(hwnd, 8, 4); else _win.PlaceTopRight(hwnd, 0, 0);
     }
 
     public void Dispose()
