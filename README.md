@@ -4,8 +4,6 @@ A dark, noir-themed Windows launcher for the PC version of L.A. Noire. It sets u
 
 It works only on **your own** L.A. Noire install. It never ships, copies or repackages game files, and it does not touch or bypass any DRM; it just starts `LaNoire.exe`.
 
-Icon: `Assets/lanoire.ico` and `Assets/lanoire.png` (taken from LANLauncher.exe).
-
 ## How it works
 
 1. **Find the game.** On start the launcher reuses the folder it remembers, or looks in the usual Rockstar and Steam locations. If it finds nothing, use **Browse...** and pick `LaNoire.exe`.
@@ -65,8 +63,8 @@ Edits the game's `settings.ini` (path auto-found in the game folder, Documents, 
 The profile box at the top right saves, loads and deletes named profiles. A profile stores the V-Patch and graphics fields, resolution, `-ignorefocus`, extra arguments, and the DXVK on/off, log level and conf lines. **Load** only fills the form; press Save Options to write it.
 
 ### FPS counter
-- **DXVK on:** the launcher starts the game with `DXVK_HUD=fps` and DXVK draws its own small counter.
-- **DXVK off:** a small click-through badge (FPS and ms) sits in the top-right corner of the game window, fed by Windows' own DXGI present events (ETW). Nothing is injected into the game. It only shows while the game window is in front; **Ctrl+Shift+F** hides/shows it.
+- **DXVK on:** the launcher starts the game with `DXVK_HUD=fps` and DXVK draws its own small counter, and the launcher adds a small "DXVK" label in the top-right corner of the game window (click-through, same style).
+- **DXVK off:** click-through "FPS: 120.0" text in the same style as DXVK's counter (updated 10 times a second) sits in the top-left corner of the game window, fed by Windows' own DXGI present events (ETW). Nothing is injected into the game. It only shows while the game window is in front; **Ctrl+Shift+F** hides/shows it.
 - Reading those events needs administrator rights (or membership of "Performance Log Users"). At startup the launcher offers to restart as administrator and explains why; if you decline, the launcher says so and the game starts normally. A game started from an elevated launcher also runs elevated. With DXVK on, no rights are needed.
 
 ## Safety and data

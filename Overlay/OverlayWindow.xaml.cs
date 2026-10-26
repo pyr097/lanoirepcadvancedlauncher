@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace LANoireLauncher.Overlay;
 
-/// <summary>Small click-through FPS / frame-time badge pinned to the top-right corner of the game window.</summary>
+/// <summary>Click-through FPS text pinned to the top-left corner of the game window, styled like the DXVK HUD.</summary>
 public partial class OverlayWindow : Window
 {
     private const int GWL_EXSTYLE = -20;
@@ -30,14 +30,34 @@ public partial class OverlayWindow : Window
         SetWindowLong(h, GWL_EXSTYLE, GetWindowLong(h, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED);
     }
 
-    public void SetStats((double fps, double ms)? s)
+    /// <summary>DXVK off: shows "FPS: 120.0" in DXVK's HUD style.</summary>
+    public void SetFps(double fps)
     {
-        FpsText.Text = s == null ? "--" : Math.Round(s.Value.fps).ToString("0");
-        MsText.Text = s == null ? "-- ms" : s.Value.ms.ToString("0.0") + " ms";
+        TagText.Visibility = Visibility.Collapsed;
+        FpsLabel.Visibility = Visibility.Visible;
+        FpsText.Visibility = Visibility.Visible;
+        FpsText.Text = " " + fps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Pins the badge 12 px inside the top-right corner of the game's client area (works in windowed and borderless).</summary>
-    public void PlaceTopRight(IntPtr gameHwnd)
+    /// <summary>DXVK on: DXVK draws the counter itself; this window only draws the "DXVK" label in the top-right corner.</summary>
+    public void SetTagOnly()
+    {
+        FpsLabel.Visibility = Visibility.Collapsed;
+        FpsText.Visibility = Visibility.Collapsed;
+        TagText.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Pins the text to the top-left of the game's client area, like DXVK's HUD. Offsets are in game pixels.</summary>
+    public void PlaceTopLeft(IntPtr gameHwnd, int offsetX, int offsetY)
+    {
+        var topLeft = new POINT { X = 0, Y = 0 };
+        if (!ClientToScreen(gameHwnd, ref topLeft)) return;
+        var h = new WindowInteropHelper(this).Handle;
+        SetWindowPos(h, HWND_TOPMOST, topLeft.X + offsetX, topLeft.Y + offsetY, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+
+    /// <summary>Pins the text to the top-right of the game's client area (works in windowed and borderless).</summary>
+    public void PlaceTopRight(IntPtr gameHwnd, int marginX, int offsetY)
     {
         if (!GetClientRect(gameHwnd, out var rc)) return;
         var topRight = new POINT { X = rc.Right, Y = rc.Top };
@@ -45,8 +65,7 @@ public partial class OverlayWindow : Window
         UpdateLayout();
         var dpi = VisualTreeHelper.GetDpi(this);
         int w = (int)Math.Round(ActualWidth * dpi.DpiScaleX);
-        int margin = (int)Math.Round(12 * dpi.DpiScaleX);
         var h = new WindowInteropHelper(this).Handle;
-        SetWindowPos(h, HWND_TOPMOST, topRight.X - w - margin, topRight.Y + margin, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+        SetWindowPos(h, HWND_TOPMOST, topRight.X - w - marginX, topRight.Y + offsetY, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
 }

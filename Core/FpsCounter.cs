@@ -15,10 +15,38 @@ public sealed class FpsCounter : IDisposable
     private const string SessionName = "LANoireLauncher-fps";
 
     private readonly TraceEventSession _session;
-    private long _frames;
+    private readonly object _lock = new();
+    private readonly Queue<long> _stamps = new();     // event times (ticks) of recent presents
+    private long _lastArrival;                         // when the last event reached us (Environment.TickCount64)
+    private const long WindowTicks = TimeSpan.TicksPerSecond / 2;
 
-    /// <summary>Total frames presented by the game since the counter started.</summary>
-    public long Frames => Interlocked.Read(ref _frames);
+    /// <summary>
+    /// Current frame rate from the timestamps of the most recent presents (last ~0.5 s of game time).
+    /// ETW hands events over in bursts, so counting per timer tick flickers; event timestamps do not.
+    /// Returns null until the first frames arrive; 0 when nothing was presented for a while (loading screen, paused).
+    /// </summary>
+    public double? CurrentFps()
+    {
+        lock (_lock)
+        {
+            if (_stamps.Count == 0) return null;
+            if (Environment.TickCount64 - _lastArrival > 2500) return 0;
+            if (_stamps.Count < 2) return null;
+            long first = _stamps.Peek(), last = 0;
+            foreach (var t in _stamps) last = t;
+            return last > first ? (_stamps.Count - 1) * (double)TimeSpan.TicksPerSecond / (last - first) : null;
+        }
+    }
+
+    private void OnPresent(long ticks)
+    {
+        lock (_lock)
+        {
+            _stamps.Enqueue(ticks);
+            _lastArrival = Environment.TickCount64;
+            while (_stamps.Count > 2 && ticks - _stamps.Peek() > WindowTicks) _stamps.Dequeue();
+        }
+    }
 
     private FpsCounter(TraceEventSession session) => _session = session;
 
@@ -34,7 +62,7 @@ public sealed class FpsCounter : IDisposable
             session.Source.AllEvents += e =>
             {
                 if (e.ProcessID == processId && (int)e.ID == PresentStart && e.ProviderGuid == DxgiProvider)
-                    Interlocked.Increment(ref counter._frames);
+                    counter.OnPresent(e.TimeStamp.Ticks);
             };
             session.EnableProvider(DxgiProvider, TraceEventLevel.Informational, ulong.MaxValue);
             Task.Run(() => { try { session.Source.Process(); } catch { } });

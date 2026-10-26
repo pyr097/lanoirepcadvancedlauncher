@@ -397,12 +397,12 @@ public partial class MainWindow : Window
             Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK]" : "   [DirectX 11]"));
         }
         catch (Exception ex) { Status("Launch failed: " + ex.Message); return; }
-        if (game != null && OverlayBox.IsChecked == true && SelectedApi == DxvkApi.Off) StartOverlay(game);
+        if (game != null && OverlayBox.IsChecked == true) StartOverlay(game, SelectedApi != DxvkApi.Off);
     }
 
     // ---------- FPS overlay ----------
-    // DXVK on  -> DXVK's built-in HUD ("fps"), set as an environment variable at launch.
-    // DXVK off -> a small launcher-drawn badge fed by Windows' DXGI present events.
+    // DXVK on  -> DXVK's built-in HUD ("fps"), set as an environment variable at launch, plus a launcher-drawn "(DXVK)" label beside it.
+    // DXVK off -> launcher-drawn "FPS: n" text in the same style, fed by Windows' DXGI present events.
     private void OverlayBox_Click(object sender, RoutedEventArgs e)
     {
         _cfg.OverlayEnabled = OverlayBox.IsChecked == true;
@@ -410,11 +410,15 @@ public partial class MainWindow : Window
         if (!_cfg.OverlayEnabled) { _overlay?.Dispose(); _overlay = null; OverlayMsgText.Text = ""; }
     }
 
-    private void StartOverlay(Process game)
+    private void StartOverlay(Process game, bool dxvk)
     {
         _overlay?.Dispose(); _overlay = null;
-        var counter = FpsCounter.TryStart(game.Id, out var err);
-        if (counter == null) { OverlayMsgText.Text = err ?? ""; return; }
+        FpsCounter? counter = null;
+        if (!dxvk)
+        {
+            counter = FpsCounter.TryStart(game.Id, out var err);
+            if (counter == null) { OverlayMsgText.Text = err ?? ""; return; }
+        }
         var ctl = new OverlayController(game, counter, msg => OverlayMsgText.Text = msg);
         ctl.Finished += () => { if (_overlay == ctl) _overlay = null; };
         _overlay = ctl;
