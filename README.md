@@ -107,8 +107,8 @@ The profile box at the top right saves, loads and deletes named profiles. A prof
 The version comes from a git tag. Push one and `.github/workflows/release.yml` builds the exe with that version, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release):
 
 ```
-git tag v2.5.1
-git push origin v2.5.1
+git tag v2.5.3
+git push origin v2.5.3
 ```
 
 Tags must look like `v1.2.3`. For local builds the version is the `<Version>` in `LANoireLauncher.csproj`.
