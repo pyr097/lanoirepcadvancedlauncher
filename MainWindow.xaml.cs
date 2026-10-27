@@ -81,7 +81,7 @@ public partial class MainWindow : Window
             new Field("options", "fps_limit", "FPS limit (0 = none)", FieldKind.Text, "Needs FPS unlock enabled.", null, PosInt),
             new Field("options", "fov_multiplier", "FoV multiplier (1.0 = default)", FieldKind.Text, "Needs aspect correction enabled.", null, PosFloat),
             new Field("options", "borderless_window", "Borderless window", FieldKind.Flag01, "Off = regular window with a title bar. The launcher always runs the game windowed."),
-            new Field("options", "skip_logos_and_legals", "Skip company logos and legal screens", FieldKind.Flag01, "Faster startup."),
+            new Field("options", "skip_logos_and_legals", "Skip Intro", FieldKind.Flag01, "Skips the company logos and legal screens for a faster startup."),
         });
 
         // NOTE: dropdown contents are best guesses; the boxes are editable. Verify against the game's own options.

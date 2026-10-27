@@ -24,7 +24,7 @@ It works only on **your own** install. It never ships or repackages game files a
 
 ### V-Patch
 - **Install from zip...** (a release zip you provide) or **Download latest** (GitHub). **Uninstall** removes only what the launcher added and restores a `dinput8.dll` you had before.
-- `lanvp.ini` settings: FPS unlock, any resolution, aspect ratio / FoV / UI correction, FPS limit (needs FPS unlock), FoV multiplier (needs aspect correction), borderless window, skip logos and legal screens. A warning appears if the FPS limit or FoV multiplier would have no effect.
+- `lanvp.ini` settings: FPS unlock, any resolution, aspect ratio / FoV / UI correction, FPS limit (needs FPS unlock), FoV multiplier (needs aspect correction), borderless window, Skip Intro (skips the company logos and legal screens). A warning appears if the FPS limit or FoV multiplier would have no effect.
 - V-Patch creates `lanvp.ini` the first time the game runs; if it is missing, run the game once.
 
 ### Vulkan (DXVK)
@@ -65,6 +65,8 @@ Safety: every value is checked first (a mismatch changes nothing), and **Revert 
 - **Check for updates** looks at the newest release of this repository. It also does this in the background at startup (silently if offline); both can be turned off.
 - **Download and install** asks first, downloads the new exe, verifies it, then replaces itself. If anything fails, the old launcher stays.
 - **Skip this version** hides a release from the automatic check.
+- **Close the launcher after starting the game** (not applied while the FPS overlay is on, since the launcher draws it).
+- **Open GitHub page** and **Open data folder** (`%AppData%\LANoireLauncher`).
 
 ## Restore to stock
 **Restore everything to stock...** undoes every launcher change to the game folder, in order: ReShade, DXVK, Enhancements (exact revert, then `out.wad.pc.orig` is deleted), V-Patch, then `settings.ini` (back to the first version the launcher saw). Only files the launcher installed are touched, and files that existed before (such as a previous `dinput8.dll` or `ReShade.ini`) are put back. Shaders, presets, profiles and backups in `%AppData%` are kept.
@@ -83,13 +85,13 @@ The profile box (top right) saves, loads and deletes named profiles: V-Patch and
 - The [Microsoft Visual C++ Redistributable (x64)](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) for the FPS overlay. At startup the launcher checks for it and, if it is missing, shows a message with the download link.
 
 ## Build and release
-Requires the .NET 8 SDK on Windows. Run `build.bat` to get a single exe at `dist\LANoireLauncher.exe` (`build.bat full` includes the .NET runtime: bigger, but runs anywhere). A Release build in Visual Studio does the same; `dotnet run` is for development.
+Requires the .NET 8 SDK on Windows. Run `dotnet publish -c Release` (or do a Release build in Visual Studio) to get a single exe at `dist\LANoireLauncher.exe`. Add `-p:SelfContained=true` to include the .NET runtime: bigger, but runs anywhere. `dotnet run` is for development.
 
 The version comes from a git tag: pushing one runs `.github/workflows/release.yml`, which builds the exe, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release). Local builds use `<Version>` in `LANoireLauncher.csproj`.
 
 ```
-git tag v2.5.6
-git push origin v2.5.6
+git tag v2.5.7
+git push origin v2.5.7
 ```
 
 ## Project layout
