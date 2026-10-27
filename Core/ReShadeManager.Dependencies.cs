@@ -73,10 +73,22 @@ public static partial class ReShadeManager
         Claims = n => SweetFxFiles.Contains(Path.GetFileName(n)),
     };
 
+    // The slim branch leaves out some shared headers (Fxaa3_11.h, ...), so it is the last resort for anything still missing.
+    public static readonly ShaderPack StandardFull = new()
+    {
+        Id = "standard-full",
+        Title = "ReShade standard effects (full branch)",
+        Url = "https://github.com/crosire/reshade-shaders/archive/refs/heads/master.zip",
+        Source = "github.com/crosire/reshade-shaders (master)",
+        Licence = "each shader keeps its own licence",
+        Claims = _ => false,
+    };
+
     public static readonly ShaderPack[] Packs =
     {
         Standard,
         SweetFx,
+        StandardFull,
         new()
         {
             Id = "immerse",
@@ -118,8 +130,11 @@ public static partial class ReShadeManager
         var n = pathOrName.Replace('\\', '/').ToLowerInvariant();
         if (n.Contains("rtgi")) return null;
         foreach (var p in Packs)
-            if (p.Id != Standard.Id && p.Id != SweetFx.Id && p.Claims(n)) return new List<ShaderPack> { p };
-        return SweetFx.Claims(n) ? new List<ShaderPack> { SweetFx, Standard } : new List<ShaderPack> { Standard, SweetFx };
+            if (p.Id != Standard.Id && p.Id != SweetFx.Id && p.Id != StandardFull.Id && p.Claims(n)) return new List<ShaderPack> { p };
+        bool fxaaHeader = n.EndsWith(".h") || n.Contains("fxaa");
+        return SweetFx.Claims(n) || fxaaHeader
+            ? new List<ShaderPack> { SweetFx, Standard, StandardFull }
+            : new List<ShaderPack> { Standard, SweetFx, StandardFull };
     }
 
     private static bool HasAnyEffect() =>
@@ -191,7 +206,7 @@ public static partial class ReShadeManager
                 else
                 {
                     var ext = Path.GetExtension(found).ToLowerInvariant();
-                    if (ext == ".fxh" || ext == ".fx") queue.Enqueue(found);
+                    if (ext == ".fxh" || ext == ".fx" || ext == ".h") queue.Enqueue(found);
                 }
             }
         }

@@ -444,7 +444,7 @@ public static partial class ReShadeManager
                 }
                 return;
             }
-            if (ext != ".fx" && ext != ".fxh") return;
+            if (ext != ".fx" && ext != ".fxh" && ext != ".h") return;
             baseDir = ShadersDir; sub = parts;
         }
 
