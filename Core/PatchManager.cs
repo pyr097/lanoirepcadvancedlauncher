@@ -56,6 +56,8 @@ public static class PatchManager
         File.WriteAllText(p, JsonSerializer.Serialize(m));
     }
 
+    public static bool InstalledByLauncher(GameInstall g) => File.Exists(ManifestPath(g));
+
     public static PatchStatus GetStatus(GameInstall g)
     {
         bool loader = File.Exists(g.LoaderDll), asi = File.Exists(g.LanvpAsi), ini = File.Exists(g.LanvpIni);
@@ -148,14 +150,15 @@ public static class PatchManager
     /// <summary>Removes only what this launcher added, restoring a backed-up dinput8.dll if there was one.</summary>
     public static void Uninstall(GameInstall g)
     {
-        var m = LoadManifest(g);
-        var files = m?.Added ?? new List<string> { "dinput8.dll", "plugins/lanvp.asi", "plugins/lanvp.ini" };
+        var m = LoadManifest(g)
+            ?? throw new InvalidOperationException("V-Patch was not installed by this launcher, so nothing was removed.");
+        var files = m.Added;
         foreach (var rel in files)
         {
             var p = Path.Combine(g.Root, rel.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(p)) File.Delete(p);
         }
-        if (m?.LoaderBackup != null && File.Exists(m.LoaderBackup))
+        if (m.LoaderBackup != null && File.Exists(m.LoaderBackup))
             File.Copy(m.LoaderBackup, g.LoaderDll, true);
         if (Directory.Exists(g.PluginsDir) && !Directory.EnumerateFileSystemEntries(g.PluginsDir).Any())
             Directory.Delete(g.PluginsDir);

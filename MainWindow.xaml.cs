@@ -146,6 +146,8 @@ public partial class MainWindow : Window
             foreach (var f in _patch) f.SetValue(ini.Get(f.Key, f.Section));
         }
         RefreshDxvk();
+        RefreshAtb();
+        RefreshReShade();
         SettingsPathBox.Text = _cfg.SettingsPath ?? "(not found — use Browse…)";
         if (!string.IsNullOrEmpty(_cfg.SettingsPath) && File.Exists(_cfg.SettingsPath))
         {
@@ -345,6 +347,7 @@ public partial class MainWindow : Window
             }
             if (!string.IsNullOrEmpty(_cfg.SettingsPath) && File.Exists(_cfg.SettingsPath))
             {
+                LauncherConfig.SaveOriginal(_cfg.SettingsPath);
                 LauncherConfig.Backup(_cfg.SettingsPath);
                 var ini = IniDocument.Load(_cfg.SettingsPath, ':');
                 foreach (var f in _gfx) ini.Set(f.Key, f.GetValue(), f.Section);
@@ -366,14 +369,22 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) { Status("DXVK: " + ex.Message); return false; }
 
+        try { if (ApplyReShade() is { } rn) note += " " + rn; }
+        catch (Exception ex) { Status("ReShade: " + ex.Message); return false; }
+
         Status("Settings applied (backups are in %AppData%\\LANoireLauncher\\backups)." + note);
         return true;
     }
 
-    private void Apply_Click(object sender, RoutedEventArgs e) => Apply();
-
-    private void Launch_Click(object sender, RoutedEventArgs e)
+    private async void Apply_Click(object sender, RoutedEventArgs e)
     {
+        await PreflightReShadeAsync();      // offers to download anything ReShade or the preset is missing
+        Apply();
+    }
+
+    private async void Launch_Click(object sender, RoutedEventArgs e)
+    {
+        await PreflightReShadeAsync();
         if (!Apply()) return;
         Process? game;
         var args = new List<string>();
@@ -425,6 +436,78 @@ public partial class MainWindow : Window
     }
 
     // ---------- profiles ----------
+    // ---------- enhancements (attribute patches in root.atb.pc) ----------
+    private bool _atbRefreshing;
+
+    private void RefreshAtb()
+    {
+        if (_game == null)
+        {
+            AtbStatusText.Text = "Select the game folder first.";
+            AtbApplyBtn.IsEnabled = false; AtbRevertBtn.IsEnabled = false;
+            return;
+        }
+        var st = AtbPatcher.GetStatus(AtbPatcher.WadPath(_game));
+        AtbStatusText.Text = st.Label;
+        AtbApplyBtn.IsEnabled = st.CanApply;
+        AtbRevertBtn.IsEnabled = st.CanRevert;
+        _atbRefreshing = true;
+        AtbFogBox.IsChecked = st.Sets.TryGetValue("fog", out var f) && f.Patched == f.Total && f.Total > 0;
+        AtbLightBox.IsChecked = st.Sets.TryGetValue("lighting", out var l) && l.Patched == l.Total && l.Total > 0;
+        AtbVehBox.IsChecked = st.Sets.TryGetValue("vehicles", out var v) && v.Patched == v.Total && v.Total > 0;
+        _atbRefreshing = false;
+    }
+
+    private HashSet<string> AtbChosenSets()
+    {
+        var s = new HashSet<string>();
+        if (AtbFogBox.IsChecked == true) s.Add("fog");
+        if (AtbLightBox.IsChecked == true) s.Add("lighting");
+        if (AtbVehBox.IsChecked == true) s.Add("vehicles");
+        return s;
+    }
+
+    private async void AtbApply_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame()) return;
+        if (GameInstall.IsRunning()) { Status("Close L.A. Noire first."); return; }
+        var chosen = AtbChosenSets();
+        if (chosen.Count == 0) { Status("Tick at least one set, or use \"Revert all to original\"."); return; }
+        int total = chosen.Sum(x => AtbPatcher.SetSize(x));
+        var r = MessageBox.Show(
+            $"This makes {total} values in your game file out.wad.pc match the PS4 remaster ({string.Join(", ", chosen)}). " +
+            "Sets you did not tick are set back to original.\n\n" +
+            "Every value is checked first, a journal is kept so it can be reverted exactly, and the file size does not change. " +
+            "A file-verification in the Rockstar launcher may flag it: revert before verifying.\n\nContinue?",
+            "Apply attribute patches", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (r != MessageBoxResult.Yes) return;
+
+        var wad = AtbPatcher.WadPath(_game!);
+        bool exact = AtbExactBox.IsChecked == true, backup = AtbBackupBox.IsChecked == true;
+        try
+        {
+            if (backup) Status("Copying out.wad.pc (about 150 MB), please wait…");
+            var n = await Task.Run(() => AtbPatcher.ApplySets(wad, chosen, exact, backup));
+            RefreshAtb();
+            Status(n == 0 ? "Nothing to change: this selection was already applied." : $"Enhancements applied: {n} values written.");
+        }
+        catch (Exception ex) { RefreshAtb(); Status("Enhancements: " + ex.Message); }
+    }
+
+    private void AtbRevert_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NeedGame()) return;
+        if (GameInstall.IsRunning()) { Status("Close L.A. Noire first."); return; }
+        try
+        {
+            var n = AtbPatcher.Revert(AtbPatcher.WadPath(_game!));
+            AtbPatcher.RemoveBackupCopy(AtbPatcher.WadPath(_game!));
+            RefreshAtb();
+            Status(n == 0 ? "Nothing to revert: all values are already original." : $"Reverted: {n} values restored.");
+        }
+        catch (Exception ex) { RefreshAtb(); Status("Enhancements: " + ex.Message); }
+    }
+
     private void RefreshProfiles()
     {
         ProfileBox.Items.Clear();
@@ -448,6 +531,11 @@ public partial class MainWindow : Window
                 ["Api"] = SelectedApi.ToString(),
                 ["Log"] = ComboText(DxvkLogBox), ["Conf"] = DxvkConfBox.Text,
             },
+            ReShade = new()
+            {
+                ["Enabled"] = ReShadeEnableBox.IsChecked == true ? "1" : "0",
+                ["Preset"] = SelectedPreset,
+            },
         });
         _cfg.Save(); RefreshProfiles(); ProfileBox.Text = name; Status($"Profile '{name}' saved.");
     }
@@ -463,6 +551,8 @@ public partial class MainWindow : Window
         var lg = p.Dxvk.GetValueOrDefault("Log", "default");
         for (int i = 0; i < DxvkLogBox.Items.Count; i++)
             if (DxvkLogBox.Items[i] is System.Windows.Controls.ComboBoxItem it && (it.Content?.ToString() ?? "") == lg) DxvkLogBox.SelectedIndex = i;
+        if (p.ReShade.TryGetValue("Enabled", out var rsOn)) ReShadeEnableBox.IsChecked = rsOn == "1";
+        if (p.ReShade.TryGetValue("Preset", out var rsPreset)) SelectPreset(rsPreset);
         ResWBox.Text = p.ResW; ResHBox.Text = p.ResH; IgnoreFocusBox.IsChecked = p.IgnoreFocus; ExtraArgsBox.Text = p.ExtraArgs;
         Status($"Profile '{p.Name}' loaded into the form. Press Save Options to write it.");
     }

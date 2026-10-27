@@ -79,6 +79,15 @@
               </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="RESTORE TO STOCK" Style="{StaticResource SectionLabel}"/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,10"
+                           Text="Puts the game folder back to how it was before this launcher: removes ReShade, DXVK and V-Patch (only files this launcher installed; a dinput8.dll, d3d11.dll or dxgi.dll you had before is restored), reverts the Enhancements and restores settings.ini to its first version. Your shaders, presets, profiles and backups in %AppData% are kept."/>
+                <Button Content="Restore everything to stock…" Click="RestoreStock_Click" HorizontalAlignment="Left" Padding="18,8"/>
+              </StackPanel>
+            </Border>
+
             <StackPanel Orientation="Horizontal" Margin="0,4,0,16">
               <Button Content="PLAY (and Save)" Style="{StaticResource PrimaryButton}" Click="Launch_Click" Padding="46,11" FontSize="14"
                       ToolTip="Applies all settings, then starts the game"/>
@@ -171,6 +180,77 @@
         </ScrollViewer>
       </TabItem>
 
+      <!-- RESHADE -->
+      <TabItem Header="ReShade">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="0,0,10,0">
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="RESHADE" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="ReShadeStatusText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" TextWrapping="Wrap"
+                           Text="ReShade is loaded through V-Patch's ASI loader as plugins\ReShade32.asi (or 64). It does not use dxgi.dll or d3d11.dll, so it works the same with DXVK on or off. Unticking and applying only removes the .asi (ReShade.ini is kept so you can switch back). Remove from game puts the game folder back exactly as it was. Press Home in the game to open ReShade's overlay."/>
+                <CheckBox x:Name="ReShadeEnableBox" Content="Enable ReShade" Margin="0,0,0,14" Click="ReShadeEnable_Click"/>
+                <WrapPanel>
+                  <Button Content="Check &amp; download missing files" Style="{StaticResource PrimaryButton}" Click="ReShadeCheck_Click" Margin="0,0,8,6"
+                          ToolTip="Checks ReShade, V-Patch's loader and every effect file the selected preset needs, and offers to download whatever is missing."/>
+                  <Button Content="Install from setup…" Click="ReShadeInstall_Click" Margin="0,0,8,6"/>
+                  <Button Content="Download latest" Click="ReShadeDownload_Click" Margin="0,0,8,6"/>
+                  <Button Content="Remove from game" Click="ReShadeRemove_Click" Margin="0,0,8,6"
+                          ToolTip="Removes the .asi, ReShade.ini and ReShade.log (restores a ReShade.ini you had before). Shaders and presets in %AppData% are kept."/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="SHADERS" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="ShaderSummaryText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" TextWrapping="Wrap"
+                           Text="Anything a preset needs that is missing (iMMERSE, LumeniteFX, standard effects, ReShade itself) is offered for download when you pick the preset, tick Enable ReShade or press Save Options / PLAY. RTGI is paid, so it is added from a folder or zip you provide. Shaders / Textures folders, loose .fx files and preset .ini files inside are sorted into place. They are kept in %AppData%\LANoireLauncher\reshade, not in the game folder."/>
+                <WrapPanel>
+                  <Button Content="Add from folder…" Click="ShadersFolder_Click" Margin="0,0,8,6"/>
+                  <Button Content="Add from zip…" Click="ShadersZip_Click" Margin="0,0,8,6"/>
+                  <Button Content="Download standard effects" Click="ShadersStandard_Click" Margin="0,0,8,6"/>
+                  <Button Content="Import from game folder" Click="ShadersFromGame_Click" Margin="0,0,8,6"
+                          ToolTip="Copies reshade-shaders, reshade-presets and loose presets from an earlier manual ReShade install"/>
+                  <Button Content="Open folder" Click="ShadersOpen_Click" Margin="0,0,8,6"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="PRESET" Style="{StaticResource SectionLabel}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <TextBlock Text="Active preset" Width="120" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="ReShadePresetBox" Width="300" DropDownClosed="ReShadePresetBox_DropDownClosed"/>
+                </StackPanel>
+                <WrapPanel>
+                  <Button Content="Import preset…" Click="PresetImport_Click" Margin="0,0,8,6"/>
+                  <Button Content="Remove" Click="PresetRemove_Click" Margin="0,0,8,6"/>
+                  <Button Content="Open folder" Click="PresetOpen_Click" Margin="0,0,8,6"/>
+                  <Button Content="Make RTGI preset" Click="PresetRtgi_Click" Margin="0,0,8,6"/>
+                  <Button Content="Make depth-check preset" Click="PresetDepth_Click" Margin="0,0,8,6"/>
+                </WrapPanel>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="The chosen preset is written to ReShade.ini when you press Save Options or PLAY. '(leave as is)' keeps whatever ReShade has. The preset is part of a profile, so you can keep a plain profile and an RTGI profile."/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="RTGI NOTES" Style="{StaticResource SectionLabel}"/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap"
+                           Text="RTGI is a paid shader, so the launcher cannot fetch it (everything else a preset needs it can): add the files you have with Add from folder / zip, then Make RTGI preset (it switches on the RTGI technique with default settings). RTGI needs the game's depth buffer. Make the depth-check preset, start the game, press Home and set the RESHADE_DEPTH_INPUT_* options until the DisplayDepth view looks right, then switch to the RTGI preset. If depth looks wrong or flickers, try Antialiasing = 0 on the Graphics tab."/>
+              </StackPanel>
+            </Border>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16" TextWrapping="Wrap"
+                       Text="ReShade © crosire, BSD 3-Clause. Each shader keeps its author's licence. Not affiliated with Rockstar Games or Take-Two."/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
       <!-- GRAPHICS -->
       <TabItem Header="Graphics">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -191,6 +271,53 @@
                 <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0" Text="Renderer is fixed to DirectX 11 by the launcher."/>
               </StackPanel>
             </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ENHANCEMENTS -->
+      <TabItem Header="Enhancements">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="0,0,10,0">
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="REMASTER-STYLE ATTRIBUTE PATCHES" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="AtbStatusText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14" TextWrapping="Wrap"
+                           Text="Copies selected values from what the PS4 remaster uses into the game's attribute database. It edits final\pc\out.wad.pc in place (file size never changes), checks every value first and keeps a journal so it can be reverted exactly. Pick the sets you want and press Apply: exactly those sets end up patched and the others are set back to original. Close the game first. A file-verification in the Rockstar launcher may flag the change: revert before verifying."/>
+
+                <CheckBox x:Name="AtbFogBox" Margin="0,0,0,2" Content="Fog and draw distance (38 values)"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,10" TextWrapping="Wrap"
+                           Text="Fog start/end, horizon fog, high-LOD draw distance, depth-of-field far plane. Subtle."/>
+
+                <CheckBox x:Name="AtbLightBox" Margin="0,0,0,2" Content="Remaster lighting values (66 values) – experimental"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,10" TextWrapping="Wrap"
+                           Text="Bloom threshold and intensity (the threshold is 4 times higher on PS4), light radius, brightness/contrast. These only copy the lighting values that changed; they may not look better, and the effect on neon signs is uncertain (see note below)."/>
+
+                <CheckBox x:Name="AtbVehBox" Margin="0,0,0,2" Content="More vehicles in high detail (2 values)"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,12" TextWrapping="Wrap"
+                           Text="High-LOD vehicles 5 → 10 and medium-LOD vehicles 12 → 24, as on the remaster. Costs some performance in dense traffic."/>
+
+                <CheckBox x:Name="AtbExactBox" Margin="0,0,0,8"
+                          Content="Use the exact PS4 fog values (no safe fog range)"
+                          ToolTip="The remaster sets fog start equal to fog end in 9 records. By default the end is set to start + 1 to avoid a possible divide-by-zero in the older PC shader."/>
+                <CheckBox x:Name="AtbBackupBox" Margin="0,0,0,14"
+                          Content="Also keep a full copy of out.wad.pc (about 150 MB) as out.wad.pc.orig"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button x:Name="AtbApplyBtn" Content="Apply selected" Style="{StaticResource PrimaryButton}" Click="AtbApply_Click" Padding="30,8"/>
+                  <Button x:Name="AtbRevertBtn" Content="Revert all to original" Click="AtbRevert_Click" Margin="10,0,0,0" Padding="18,8"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="ABOUT NEON SIGNS AND THE REMASTER LIGHTING" Style="{StaticResource SectionLabel}"/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap"
+                           Text="The neon light definitions (neon_light, neon_light_pp, ...) and all glow values are identical on PC and PS4, so there is nothing in the data to copy for them. The remaster look comes mostly from new rendering code and shaders that the PC executable does not have; a data patch cannot port that. The values above are the lighting data that did change."/>
+              </StackPanel>
+            </Border>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16" TextWrapping="Wrap"
+                       Text="Works only on your own installation. The values were found by comparing the PC and PS4 attribute files of your own copies; no game data is included in this launcher."/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

@@ -10,6 +10,7 @@ public sealed class Profile
     public string ResW { get; set; } = "";
     public string ResH { get; set; } = "";
     public Dictionary<string, string> Dxvk { get; set; } = new();
+    public Dictionary<string, string> ReShade { get; set; } = new();
     public bool IgnoreFocus { get; set; }
     public string ExtraArgs { get; set; } = "";
 }
@@ -37,6 +38,30 @@ public sealed class LauncherConfig
     {
         Directory.CreateDirectory(Dir);
         File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    private static string OriginalPath(string file)
+    {
+        var id = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(
+            System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(file).ToLowerInvariant())))[..12];
+        return Path.Combine(Dir, "original", id + "-" + Path.GetFileName(file));
+    }
+
+    /// <summary>Keeps the very first version of a file, once, so it can be put back exactly ("Restore to stock").</summary>
+    public static void SaveOriginal(string file)
+    {
+        var d = OriginalPath(file);
+        if (!File.Exists(file) || File.Exists(d)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(d)!);
+        File.Copy(file, d);
+    }
+
+    public static bool RestoreOriginal(string file)
+    {
+        var s = OriginalPath(file);
+        if (!File.Exists(s)) return false;
+        File.Copy(s, file, true);
+        return true;
     }
 
     /// <summary>Copies a file into a timestamped backup folder before the launcher modifies it.</summary>
