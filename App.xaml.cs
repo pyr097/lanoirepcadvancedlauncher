@@ -9,6 +9,13 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        // the check window must not count as "the last window closed", and must not become the app's main window
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var carryOn = LANoireLauncher.Core.DependencyCheck.Run();
+        MainWindow = null;
+        ShutdownMode = ShutdownMode.OnLastWindowClose;
+        if (!carryOn) { Shutdown(); return; }
+
         if (!IsAdministrator() && AskToRestartAsAdmin())
         {
             Shutdown();
@@ -28,9 +35,9 @@ public partial class App : Application
     private static bool AskToRestartAsAdmin()
     {
         var answer = MessageBox.Show(
-            "The FPS overlay needs administrator rights to read the game's frame data when DXVK is off. " +
-            "Without them it will not work (with DXVK on it still does).\n\n" +
-            "Restart the launcher as administrator now?",
+            "The FPS overlay needs administrator rights when DXVK is off, to read the game's frame data from Windows. " +
+            "With DXVK on it works without them.\n\n" +
+            "Restart as administrator now?",
             "Administrator rights", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return false;
         try

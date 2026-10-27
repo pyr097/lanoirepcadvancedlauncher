@@ -11,13 +11,11 @@ public partial class MainWindow
         if (!NeedGame()) return;
         if (GameInstall.IsRunning()) { Status("Close L.A. Noire first."); return; }
         if (MessageBox.Show(
-                "This puts the game folder back to how it was before this launcher:\n\n" +
-                "•  ReShade removed (a ReShade.ini you had before is restored)\n" +
-                "•  DXVK removed (a d3d11.dll / dxgi.dll you had before is restored)\n" +
-                "•  Enhancements reverted and the out.wad.pc.orig copy deleted\n" +
-                "•  V-Patch removed (a dinput8.dll you had before is restored)\n" +
+                "This undoes everything the launcher changed in the game folder:\n\n" +
+                "•  ReShade, DXVK and V-Patch removed\n" +
+                "•  Enhancements reverted\n" +
                 "•  settings.ini restored to its first version\n\n" +
-                "Only files this launcher installed are touched. Your shaders, presets, profiles and backups in %AppData% are kept.\n\nContinue?",
+                "Files you had before (such as dinput8.dll) are put back. Your shaders, presets, profiles and backups are kept.\n\nContinue?",
                 "Restore to stock", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
         var g = _game!;

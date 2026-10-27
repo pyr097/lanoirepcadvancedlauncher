@@ -71,7 +71,7 @@ public sealed class FpsCounter : IDisposable
         catch (UnauthorizedAccessException)
         {
             session?.Dispose();
-            error = "FPS overlay with DXVK off needs the launcher to run as administrator (or your account in the \"Performance Log Users\" group). With DXVK on it works without.";
+            error = "With DXVK off, the FPS overlay needs administrator rights (or the \"Performance Log Users\" group). With DXVK on it works without.";
             return null;
         }
         catch (Exception ex)

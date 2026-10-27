@@ -25,6 +25,12 @@
     <DebugSymbols>false</DebugSymbols>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <!-- where the single exe lands, for both `dotnet publish` and the auto-publish after a Release build -->
+    <PublishDir>$(MSBuildProjectDirectory)\dist\</PublishDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SelfContained)' == 'true'">
+    <!-- only valid for self-contained: shrinks the runtime-free exe -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.IO" />
@@ -43,4 +49,10 @@
     <!-- default ReShade preset, copied into the launcher's Presets folder right after the ReShade runtime is installed (see SeedDefaultPreset) -->
     <EmbeddedResource Include="Assets\DefaultPreset.ini" LogicalName="DefaultPreset.ini" />
   </ItemGroup>
+
+  <!-- A plain "Build" never makes a single file (only Publish does). So a Release build also publishes, leaving
+       the one exe in .\dist\LANoireLauncher.exe. Debug builds and `dotnet publish` itself are not affected. -->
+  <Target Name="PublishSingleExeAfterBuild" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' And '$(_IsPublishing)' != 'true' And '$(NoPublishAfterBuild)' != 'true'">
+    <CallTarget Targets="Publish" />
+  </Target>
 </Project>

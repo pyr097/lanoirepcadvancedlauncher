@@ -189,7 +189,7 @@ public partial class MainWindow : Window
         catch (LoaderConflictException)
         {
             var r = MessageBox.Show("A different dinput8.dll is already in the game folder (ReShade or another mod?).\n\n" +
-                "Replace it? The original will be backed up and restored if you uninstall V-Patch.",
+                "Replace it? The original is backed up and restored when you uninstall V-Patch.",
                 "dinput8.dll conflict", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
             PatchManager.Install(_game!, zip, true);
@@ -478,10 +478,10 @@ public partial class MainWindow : Window
         if (chosen.Count == 0) { Status("Tick at least one set, or use \"Revert all to original\"."); return; }
         int total = chosen.Sum(x => AtbPatcher.SetSize(x));
         var r = MessageBox.Show(
-            $"This makes {total} values in your game file out.wad.pc match the PS4 remaster ({string.Join(", ", chosen)}). " +
-            "Sets you did not tick are set back to original.\n\n" +
-            "Every value is checked first, a journal is kept so it can be reverted exactly, and the file size does not change. " +
-            "A file-verification in the Rockstar launcher may flag it: revert before verifying.\n\nContinue?",
+            $"This changes {total} values in out.wad.pc to match the PS4 remaster ({string.Join(", ", chosen)}). " +
+            "Unticked sets are set back to original.\n\n" +
+            "Every value is checked first and can be reverted exactly. " +
+            "The Rockstar launcher's file check may flag it, so revert before verifying.\n\nContinue?",
             "Apply attribute patches", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
 

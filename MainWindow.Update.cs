@@ -119,14 +119,14 @@ public partial class MainWindow
 
         if (!UpdateManager.CanReplaceSelf())
         {
-            if (MessageBox.Show("The launcher is in a folder it cannot write to, so it cannot replace itself here.\n\n" +
-                                "Open the release page to download the new version by hand?",
+            if (MessageBox.Show("The launcher is in a folder it can't write to, so it can't update itself.\n\n" +
+                                "Open the release page to download it by hand?",
                     "Update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes) OpenUrl(info.PageUrl);
             return;
         }
 
         var mb = info.AssetSize > 0 ? $" ({info.AssetSize / 1048576.0:0.#} MB)" : "";
-        var running = GameInstall.IsRunning() ? "\n\nL.A. Noire is running. It keeps running, but the FPS counter goes away while the launcher restarts." : "";
+        var running = GameInstall.IsRunning() ? "\n\nL.A. Noire keeps running, but the FPS counter stops while the launcher restarts." : "";
         if (MessageBox.Show($"Download version {UpdateManager.Format(info.Version)}{mb} and restart the launcher?\n\n" +
                             "Your settings, profiles and backups are kept." + running,
                 "Update", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;

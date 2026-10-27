@@ -16,57 +16,54 @@ It works only on **your own** install. It never ships or repackages game files a
 ## Tabs
 
 ### Play
-- Game folder: auto-detect, Browse..., build/version/SHA-256 readout and V-Patch support check.
+- Game folder: auto-detect, Browse..., and a readout of the game's build and V-Patch support.
 - Launch options: force resolution (`-res W H`), keep running when alt-tabbed (`-ignorefocus`), extra arguments.
-- **FPS counter** (see below), **PLAY (and Save)**, **Save Options** (apply only).
+- **Show FPS Overlay:** shows the FPS on top of the game; **Ctrl+Shift+F** hides/shows it. With DXVK on it uses DXVK's own counter and needs no special rights. With DXVK off, Windows only lets administrators read the game's frame data, so the launcher offers to restart as administrator at startup. Nothing is injected into the game.
+- **PLAY (and Save)** applies everything and starts the game. **Save Options** only applies.
 - **Restore everything to stock...** (see below).
 
 ### V-Patch
-- **Install from zip...** (a release zip you provide) or **Download latest** (GitHub).
-- **Uninstall** removes only what the launcher added; a different `dinput8.dll` that was there before is backed up and restored.
-- Shows the install status (recognises V-Patch 2.0, flags unknown versions or a foreign loader).
+- **Install from zip...** (a release zip you provide) or **Download latest** (GitHub). **Uninstall** removes only what the launcher added and restores a `dinput8.dll` you had before.
 - `lanvp.ini` settings: FPS unlock, any resolution, aspect ratio / FoV / UI correction, FPS limit (needs FPS unlock), FoV multiplier (needs aspect correction), borderless window, skip logos and legal screens. A warning appears if the FPS limit or FoV multiplier would have no effect.
-- V-Patch creates `lanvp.ini` when the game first runs; if it is missing, run the game once.
+- V-Patch creates `lanvp.ini` the first time the game runs; if it is missing, run the game once.
 
 ### Vulkan (DXVK)
-- The game always runs on DirectX 11; DXVK optionally translates it to Vulkan (needs a Vulkan 1.3 driver for current DXVK).
-- **Install from archive...** or **Download** puts DXVK's `d3d11.dll` and `dxgi.dll` next to `LaNoire.exe` (matched to the exe's bitness). Version box: `latest`, `v1.10.3` (older GPUs without Vulkan 1.3) or any release tag.
-- **Render with Vulkan (DXVK)** switches the installed files on or off when you apply; applying never installs new files.
-- **Uninstall** removes the DXVK files; foreign DLLs (ReShade, SpecialK, another DXVK) are backed up and restored.
-- Advanced: log level (`%AppData%\LANoireLauncher\dxvk-logs`), extra `dxvk.conf` lines (any `maxFrameRate` is dropped), clear the shader/pipeline cache.
-- Options are passed as environment variables, so only the two DLLs go into the game folder. DXVK's own frame cap is always 0; the only limiter is V-Patch's `fps_limit`.
+- DXVK runs the game on Vulkan instead of DirectX 11 (current DXVK needs a Vulkan 1.3 driver; pick `v1.10.3` for older GPUs).
+- **Install from archive...** or **Download** gets DXVK ready. **Render with Vulkan (DXVK)** switches it on or off when you apply. **Uninstall** removes it and restores any DLLs you had before.
+- Advanced: log level, extra `dxvk.conf` lines, clear the shader cache.
+- To limit FPS, use the FPS limit in the V-Patch tab (any `maxFrameRate` in `dxvk.conf` is ignored).
 
 ### ReShade
-Works with DXVK on or off. ReShade loads through the ASI loader V-Patch installs (`dinput8.dll`): the launcher copies the ReShade dll to `plugins\ReShade32.asi` (or `ReShade64.asi`), so it avoids `dxgi.dll` and `d3d11.dll` (DXVK's) and `dinput8.dll` (V-Patch's). V-Patch must be installed.
+Works with DXVK on or off. Needs V-Patch installed.
 
-- **Runtime:** **Install from setup...** takes the dlls from a ReShade setup exe, zip or bare dll; **Download latest** fetches the setup **with add-on support** from reshade.me (the only build it downloads). A runtime not known to be the add-on build is flagged and the launcher offers to replace it. Cached in `%AppData%\LANoireLauncher\reshade\runtime`.
-- **Enable ReShade** (applied with Save Options / PLAY) copies the `.asi` into `plugins\` and points `ReShade.ini` at the launcher's shader, texture and preset folders. Unticking removes only the `.asi`. A ReShade you installed yourself is detected and blocks enabling (two copies conflict); use **Import from game folder** to keep its shaders and presets, then remove it. **Remove from game** puts the game folder back as it was.
-- **Shaders:** **Add from folder / zip...** sorts a pack into place; **Download standard effects** fetches `crosire/reshade-shaders` (slim). Everything lives in `%AppData%\LANoireLauncher\reshade`; the game folder only gets `ReShade.ini`, `ReShade.log` and the `.asi`.
-- **Default preset:** the launcher carries `LA Noire Next Gen 2026 - realistic.ini`. It is copied into the Presets folder right after the ReShade runtime is installed, and only then; an existing preset of that name is never overwritten. It is selected as the active preset when no other preset is chosen or set in `ReShade.ini`.
-- **Presets:** import, pick the active one (written to `ReShade.ini` on apply; "(leave as is)" keeps ReShade's choice), remove, or open the folder. The chosen preset is part of a profile.
-- **Missing files:** when you pick or import a preset, tick Enable ReShade, press Save Options / PLAY with ReShade ticked, or press **Check & download missing files**, the launcher lists what is missing (runtime, V-Patch's loader, every effect and header the preset's `Techniques=` names) and offers to download it in one go. Each file is fetched from the pack it normally comes from: `MartysMods_*` from [iMMERSE](https://github.com/martymcmodding/iMMERSE), `lumenite_*` from [LumeniteFX](https://github.com/umar-afzaal/LumeniteFX), `qUINT_*` from [qUINT](https://github.com/martymcmodding/qUINT), CeeJay.dk's classics (`FXAA`, `SMAA`, `Levels`, `LumaSharpen`, ...) from [SweetFX](https://github.com/CeeJayDK/SweetFX), the rest from ReShade's standard effects, trying the next pack if a file is not found. Existing effects and presets are never replaced. Declining is remembered for the session; Save Options / PLAY never block on it. Anything it cannot fetch (RTGI, or files removed upstream) is listed with the reason.
-- **RTGI** is a paid shader and is not downloaded or bundled. Add your own files, then **Make RTGI preset** creates a preset with its technique(s) on. **Make depth-check preset** (needs `DisplayDepth.fx`) shows ReShade's depth view so you can set the `RESHADE_DEPTH_INPUT_*` options in the overlay (Home).
-- If ReShade does not appear, check `ReShade.log` in the game folder.
+- **Runtime:** **Install from setup...** takes the files from a ReShade setup exe, zip or dll. **Download latest** fetches the version with add-on support from reshade.me.
+- **Enable ReShade** (applied with Save Options / PLAY) turns ReShade on in the game. Unticking turns it off but keeps your settings. If you installed ReShade yourself, the launcher detects it and won't enable a second copy; use **Import from game folder** to keep its shaders and presets, then remove it. **Remove from game** deletes ReShade from the game folder completely.
+- **Shaders:** **Add from folder / zip...** sorts a shader pack into place; **Download standard effects** fetches the standard ReShade effects. Everything is stored in `%AppData%\LANoireLauncher\reshade`, not in the game folder.
+- **Default preset:** the launcher includes `LA Noire Next Gen 2026 - realistic.ini`. It is added right after ReShade is first installed (never overwriting an existing preset of that name) and is selected if you have not chosen another preset.
+- **Presets:** import, choose the active one (used when you apply; "(leave as is)" keeps ReShade's current preset), remove, or open the folder. The preset is saved in profiles.
+- **Missing files:** when you pick a preset, tick Enable ReShade, press Save Options / PLAY, or press **Check & download missing files**, the launcher lists what the preset still needs and offers to download it in one go from the packs those effects come from ([iMMERSE](https://github.com/martymcmodding/iMMERSE), [LumeniteFX](https://github.com/umar-afzaal/LumeniteFX), [qUINT](https://github.com/martymcmodding/qUINT), [SweetFX](https://github.com/CeeJayDK/SweetFX), ReShade's standard effects). Existing files are never replaced. Anything it can't fetch is listed with the reason.
+- **RTGI** is a paid shader, so it is not downloaded. Add your own files, then **Make RTGI preset**. RTGI needs the game's depth buffer: **Make depth-check preset** (needs `DisplayDepth.fx`), start the game, press Home and adjust the `RESHADE_DEPTH_INPUT_*` options until the depth view looks right.
+- If ReShade does not appear in the game, check `ReShade.log` in the game folder.
 
 ### Graphics
-Edits the game's `settings.ini` (found in the game folder, Documents, LocalAppData or AppData; or use **Browse...**): resolution, antialiasing, anisotropic filtering, SSAO, facial quality, texture/shadow/lighting/environment/LOD detail, interface size, threading and the game's own command line. Dropdowns are editable.
+Edits the game's `settings.ini` (found automatically, or use **Browse...**): resolution, antialiasing, anisotropic filtering, SSAO, facial quality, detail levels, interface size and threading. Dropdowns are editable.
 
-- **DirectX 11 always.** Every Apply forces it in `lanvp.ini` (and `Renderer` in `settings.ini` if present).
-- **Windowed or borderless only.** Apply writes `Fullscreen: NO`; the "Borderless window" checkbox picks which.
+- **DirectX 11 always:** applying forces it.
+- **Windowed or borderless only:** applying sets Fullscreen to NO; the "Borderless window" checkbox picks which.
 
 ### Enhancements (work in progress)
-Experimental and still being developed. It copies selected values the PS4 remaster uses into the game's attribute database inside `final\pc\out.wad.pc`. The values come from comparing the PC and PS4 files of your own copies; no game data is shipped. Tick the sets you want and press **Apply selected**: exactly those sets end up patched, the others are set back to original.
+Experimental and still being developed. It copies selected values from the PS4 remaster into the game's data file (`final\pc\out.wad.pc`). The values come from comparing the PC and PS4 files of your own copies; no game data is shipped. Tick the sets you want and press **Apply selected**: ticked sets are patched, unticked sets are set back to original.
 
 - **Fog and draw distance (38 values):** subtle.
-- **Remaster lighting values (66 values), experimental:** bloom, light radius, brightness/contrast. They may not look better, and neon signs are unaffected (their data is identical on PC and PS4; the remaster look comes from rendering code a data patch cannot port).
+- **Remaster lighting values (66 values), experimental:** bloom, light radius, brightness/contrast. They may not look better, and neon signs are not affected (the remaster's neon look comes from rendering code a data patch cannot add).
 - **More vehicles in high detail (2 values).**
-- Options: exact PS4 fog values (by default fog end is set to start + 1 to avoid a divide-by-zero), and a full `out.wad.pc.orig` copy (about 150 MB).
+- Options: use the exact PS4 fog values, and keep a full copy of the original file (`out.wad.pc.orig`, about 150 MB).
 
-Safety: the file size never changes, every value is checked first (a mismatch aborts with nothing changed), and a journal in `%AppData%\LANoireLauncher\atb-journal` lets **Revert all to original** restore the exact bytes. The tab is independent of Save Options and profiles and refuses to run while the game is running. A file check in the Rockstar launcher may flag the change: revert before verifying.
+Safety: every value is checked first (a mismatch changes nothing), and **Revert all to original** restores the exact original bytes. This tab is independent of Save Options and profiles, and refuses to run while the game is running. The Rockstar launcher's file check may flag the change, so revert before verifying.
 
 ### About (updates)
-- **Check for updates** reads the newest release of this repository; on startup it does so in the background and shows an **Update available** button (silent when offline). Both can be turned off; **Include pre-releases** also offers beta tags.
-- **Download and install** asks first, downloads `LANoireLauncher.exe`, verifies its SHA-256 and size, then replaces itself (the old exe is kept as `LANoireLauncher.exe.old` and deleted on the next start). On any failure the old launcher stays; if the folder is not writable, the release page opens instead.
+- **Check for updates** looks at the newest release of this repository. It also does this in the background at startup (silently if offline); both can be turned off. **Include pre-releases** also offers beta versions.
+- **Download and install** asks first, downloads the new exe, verifies it, then replaces itself. If anything fails, the old launcher stays.
 - **Skip this version** hides a release from the automatic check.
 
 ## Restore to stock
@@ -75,19 +72,18 @@ Safety: the file size never changes, every value is checked first (a mismatch ab
 ## Profiles
 The profile box (top right) saves, loads and deletes named profiles: V-Patch and graphics fields, resolution, `-ignorefocus`, extra arguments, DXVK settings, and ReShade on/off with the chosen preset. **Load** only fills the form; press Save Options to write it.
 
-## FPS counter
-- **DXVK on:** the game starts with `DXVK_HUD=fps`, and the launcher adds a small click-through "DXVK" label in the top-right corner of the game window.
-- **DXVK off:** a click-through "FPS: 120.0" text in the top-left corner of the game window, fed by Windows' DXGI present events (ETW). Nothing is injected. It shows only while the game window is in front; **Ctrl+Shift+F** hides/shows it.
-- With DXVK off it needs administrator rights (or "Performance Log Users" membership); the launcher offers to restart as administrator at startup. A game started from an elevated launcher also runs elevated.
-
 ## Safety and data
 - Every file is backed up to `%AppData%\LANoireLauncher\backups\<timestamp>` before it is changed; the first `settings.ini` is kept in `...\original`.
 - Only files the launcher added are removed on uninstall (tracked in `...\manifests`); with no record, nothing is deleted.
 - V-Patch, DXVK, ReShade and shaders are never bundled; they come from an archive you pick or from GitHub at runtime. Two small files are embedded: the default preset (copied only after ReShade is installed) and `Fxaa3_11.h` (NVIDIA FXAA 3.11 by Timothy Lottes, which `FXAA.fx` includes and ReShade's slim branch omits), written next to `FXAA.fx` only if no copy exists.
 - Launcher data (config, profiles, backups, manifests, caches, logs, ReShade runtime, shaders, presets) lives in `%AppData%\LANoireLauncher`. The game folder only gets the files described above (V-Patch, DXVK, `plugins\ReShade32.asi`, `ReShade.ini`).
 
+## Requirements
+- Windows 10 or 11 (64-bit) and the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime). If it is missing, Windows shows its own message with the download link.
+- The [Microsoft Visual C++ Redistributable (x64)](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) for the FPS overlay. At startup the launcher checks for it and, if it is missing, shows a message with the download link.
+
 ## Build and release
-Requires the .NET 8 SDK on Windows. `dotnet run` for development; `dotnet publish LANoireLauncher.csproj -c Release -o dist` builds a single exe (needs the .NET 8 Desktop Runtime to run; set `SelfContained` to `true` for a runtime-free, much larger exe).
+Requires the .NET 8 SDK on Windows. Run `build.bat` to get a single exe at `dist\LANoireLauncher.exe` (`build.bat full` includes the .NET runtime: bigger, but runs anywhere). A Release build in Visual Studio does the same; `dotnet run` is for development.
 
 The version comes from a git tag: pushing one runs `.github/workflows/release.yml`, which builds the exe, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release). Local builds use `<Version>` in `LANoireLauncher.csproj`.
 
@@ -98,8 +94,8 @@ git push origin v2.5.4
 
 ## Project layout
 - `MainWindow.xaml` / `.xaml.cs`, `MainWindow.ReShade.cs`, `MainWindow.Update.cs`, `MainWindow.Restore.cs`: the UI and its logic.
-- `Theme.xaml`, `App.xaml` / `.xaml.cs`: styles, startup and the administrator prompt.
-- `Core/`: `GameInstall`, `PatchManager` (V-Patch), `DxvkManager`, `ReShadeManager` (+ `.Dependencies`), `AtbPatcher` (Enhancements), `UpdateManager`, `IniDocument`, `Field`, `LauncherConfig`, `FpsCounter`.
+- `Theme.xaml`, `App.xaml` / `.xaml.cs`: styles, startup, the dependency check and the administrator prompt.
+- `Core/`: `GameInstall`, `PatchManager` (V-Patch), `DxvkManager`, `ReShadeManager` (+ `.Dependencies`), `AtbPatcher` (Enhancements), `UpdateManager`, `DependencyCheck`, `IniDocument`, `Field`, `LauncherConfig`, `FpsCounter`.
 - `Overlay/`: the FPS text.
 
 ## Credits and licences
@@ -108,6 +104,6 @@ git push origin v2.5.4
 - **DXVK** by Philip Rebohle and contributors, [github.com/doitsujin/dxvk](https://github.com/doitsujin/dxvk), zlib. Downloaded on request.
 - **ReShade** by crosire, [reshade.me](https://reshade.me), BSD 3-Clause. Downloaded on request. Shaders (including RTGI) keep their authors' licences and are not included.
 - **iMMERSE** and **qUINT** by Pascal Gilcher (Marty McFly), **LumeniteFX** by Umar Afzaal, **SweetFX** by CeeJay.dk. Downloaded from their repositories on request; each keeps its author's licence.
-- **Microsoft.Diagnostics.Tracing.TraceEvent** (MIT) for the FPS counter; **.NET 8 and WPF** by Microsoft.
+- **Microsoft.Diagnostics.Tracing.TraceEvent** (MIT) for the FPS overlay; **.NET 8 and WPF** by Microsoft.
 
 Made by pyr097. L.A. Noire is a trademark of Rockstar Games / Take-Two Interactive. This launcher is not affiliated with or endorsed by Rockstar Games, Take-Two, V-Patch, DXVK or ThirteenAG.
