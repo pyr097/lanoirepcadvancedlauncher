@@ -1,5 +1,16 @@
 # L.A. Noire Advanced Launcher
 
+<p align="center">
+  <a href="docs/screenshots/play.png"><img src="docs/screenshots/play.png" alt="Play tab" width="32%"></a>
+  <a href="docs/screenshots/vpatch.png"><img src="docs/screenshots/vpatch.png" alt="V-Patch tab" width="32%"></a>
+  <a href="docs/screenshots/vulkan.png"><img src="docs/screenshots/vulkan.png" alt="Vulkan (DXVK) tab" width="32%"></a>
+</p>
+<p align="center">
+  <a href="docs/screenshots/reshade.png"><img src="docs/screenshots/reshade.png" alt="ReShade tab" width="32%"></a>
+  <a href="docs/screenshots/graphics.png"><img src="docs/screenshots/graphics.png" alt="Graphics tab" width="32%"></a>
+  <a href="docs/screenshots/enhancements.png"><img src="docs/screenshots/enhancements.png" alt="Enhancements tab" width="32%"></a>
+</p>
+
 A dark, noir-themed Windows launcher for the PC version of L.A. Noire. It sets up V-Patch, optional Vulkan rendering (DXVK), optional ReShade with presets, graphics settings and launch options in one window, and starts the game.
 
 It works only on **your own** install. It never ships or repackages game files and does not touch or bypass any DRM; it just starts `LaNoire.exe`.
