@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LANoireLauncher</AssemblyName>
     <!-- the release workflow overrides this from the git tag (v1.2.3 -> 1.2.3); the updater compares against it -->
-    <Version>2.5.3</Version>
+    <Version>2.5.4</Version>
     <RootNamespace>LANoireLauncher</RootNamespace>
     <ApplicationIcon>Assets\lanoire.ico</ApplicationIcon>
 
@@ -40,5 +40,7 @@
   <ItemGroup>
     <!-- NVIDIA FXAA 3.11 header, written next to FXAA.fx when the downloaded packs did not bring it (see EnsureBundledHeaders) -->
     <EmbeddedResource Include="Assets\Fxaa3_11.h" LogicalName="Fxaa3_11.h" />
+    <!-- default ReShade preset, copied into the launcher's Presets folder right after the ReShade runtime is installed (see SeedDefaultPreset) -->
+    <EmbeddedResource Include="Assets\DefaultPreset.ini" LogicalName="DefaultPreset.ini" />
   </ItemGroup>
 </Project>

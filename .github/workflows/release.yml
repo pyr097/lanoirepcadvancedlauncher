@@ -1,6 +1,6 @@
 # Publishes a GitHub release with the single-file exe (+ SHA-256) whenever a version tag is pushed:
-#   git tag v2.5.3
-#   git push origin v2.5.3
+#   git tag v2.5.4
+#   git push origin v2.5.4
 # The launcher's updater reads these releases. A tag with a dash (v1.2.0-beta.1) is published as a pre-release.
 name: Release
 

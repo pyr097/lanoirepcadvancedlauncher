@@ -60,6 +60,7 @@ public static partial class ReShadeManager
     public static string PresetsDir => Path.Combine(Root, "Presets");
 
     private static string DllName(GameInstall g) => g.Is64Bit ? "ReShade64.dll" : "ReShade32.dll";
+    public static string CachedRuntimePath(GameInstall g) => CachedDll(g);
     private static string CachedDll(GameInstall g) => Path.Combine(RuntimeDir, DllName(g));
     private static string AsiName(GameInstall g) => Path.ChangeExtension(DllName(g), ".asi");
     private static string AsiRel(GameInstall g) => "plugins/" + AsiName(g);
@@ -239,7 +240,41 @@ public static partial class ReShadeManager
         bool isAddon = addon ?? Path.GetFileName(source).Contains("addon", StringComparison.OrdinalIgnoreCase);
         var marker = Path.Combine(RuntimeDir, "addon.txt");
         if (isAddon) File.WriteAllText(marker, "1"); else if (File.Exists(marker)) File.Delete(marker);
+        SeedDefaultPreset();      // the bundled preset arrives with the runtime, and never before it
         return ver.Length > 0 ? ver : "(version unknown)";
+    }
+
+    // ---------- default preset ----------
+
+    /// <summary>File name the bundled preset gets in the launcher's Presets folder.</summary>
+    public const string DefaultPresetName = "LA Noire Next Gen 2026 - realistic.ini";
+
+    /// <summary>
+    /// Copies the preset that ships inside the launcher into the Presets folder. Called only when the ReShade runtime has just been
+    /// installed. A preset of that name that is already there (the user may have tuned it) is never replaced. True if it was written.
+    /// </summary>
+    public static bool SeedDefaultPreset()
+    {
+        try
+        {
+            var dest = Path.Combine(PresetsDir, DefaultPresetName);
+            if (File.Exists(dest)) return false;
+            using var res = typeof(ReShadeManager).Assembly.GetManifestResourceStream("DefaultPreset.ini");
+            if (res == null) return false;
+            Directory.CreateDirectory(PresetsDir);
+            using var dst = File.Create(dest);
+            res.CopyTo(dst);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }      // best effort
+    }
+
+    /// <summary>The preset to write to ReShade.ini: the one chosen, else (only if the ini has no PresetPath yet) the bundled default if it is in the store.</summary>
+    private static string? PresetToWrite(IniDocument ini, string? preset)
+    {
+        if (!string.IsNullOrEmpty(preset)) return preset;
+        if (!string.IsNullOrWhiteSpace(ini.Get("PresetPath", "GENERAL"))) return null;
+        return File.Exists(Path.Combine(PresetsDir, DefaultPresetName)) ? DefaultPresetName : null;
     }
 
     // ---------- enable / disable in the game folder ----------
@@ -333,7 +368,8 @@ public static partial class ReShadeManager
         var ini = IniDocument.Load(path, '=');
         ini.Set("EffectSearchPaths", ShadersDir + "\\**", "GENERAL");      // "\**" = this folder and all subfolders
         ini.Set("TextureSearchPaths", TexturesDir + "\\**", "GENERAL");
-        if (!string.IsNullOrEmpty(preset)) ini.Set("PresetPath", Path.Combine(PresetsDir, preset), "GENERAL");
+        var use = PresetToWrite(ini, preset);
+        if (!string.IsNullOrEmpty(use)) ini.Set("PresetPath", Path.Combine(PresetsDir, use), "GENERAL");
         ini.Save();
 
         // The game is also launched with RESHADE_BASE_PATH_OVERRIDE pointing at the game folder (so the ini above is the one used), but if
@@ -348,7 +384,8 @@ public static partial class ReShadeManager
                 var pd = IniDocument.Load(pi, '=');
                 pd.Set("EffectSearchPaths", ShadersDir + "\\**", "GENERAL");
                 pd.Set("TextureSearchPaths", TexturesDir + "\\**", "GENERAL");
-                if (!string.IsNullOrEmpty(preset)) pd.Set("PresetPath", Path.Combine(PresetsDir, preset), "GENERAL");
+                var usePd = PresetToWrite(pd, preset);
+                if (!string.IsNullOrEmpty(usePd)) pd.Set("PresetPath", Path.Combine(PresetsDir, usePd), "GENERAL");
                 pd.Save();
             }
         }

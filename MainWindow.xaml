@@ -75,7 +75,7 @@
                 <TextBlock Text="FPS COUNTER" Style="{StaticResource SectionLabel}"/>
                 <CheckBox x:Name="OverlayBox" Content="Show FPS while playing" Click="OverlayBox_Click"/>
                 <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
-                           Text="With DXVK on, DXVK's own counter is shown. With DXVK off, a small badge appears in the top-right corner of the game window (windowed or borderless; Ctrl+Shift+F shows/hides it) and needs the launcher to run as administrator. Nothing is injected into the game."/>
+                           Text="With DXVK on, DXVK's own counter is shown. With DXVK off, a small "FPS: n" text appears in the top-left corner of the game window, and with DXVK on a small "DXVK" label in the top-right (windowed or borderless; Ctrl+Shift+F shows/hides it) and needs the launcher to run as administrator. Nothing is injected into the game."/>
                 <TextBlock x:Name="OverlayMsgText" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
               </StackPanel>
             </Border>
@@ -277,9 +277,16 @@
       </TabItem>
 
       <!-- ENHANCEMENTS -->
-      <TabItem Header="Enhancements">
+      <TabItem Header="Enhancements (WIP)">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="0,0,10,0">
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="WORK IN PROGRESS" Style="{StaticResource SectionLabel}" Foreground="{StaticResource Accent}"/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap"
+                           Text="This tab is still being developed. The patches are experimental and may change or not look better than stock. Every change can be reverted."/>
+              </StackPanel>
+            </Border>
             <Border Style="{StaticResource Card}">
               <StackPanel>
                 <TextBlock Text="REMASTER-STYLE ATTRIBUTE PATCHES" Style="{StaticResource SectionLabel}"/>
@@ -367,7 +374,10 @@
 
     <!-- status bar -->
     <Border Grid.Row="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="24,10">
-      <TextBlock x:Name="StatusText" TextWrapping="Wrap" MinHeight="34" Foreground="{StaticResource Muted}" FontSize="12"/>
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Right" Text="pyr097" VerticalAlignment="Bottom" Margin="16,0,0,0" Foreground="{StaticResource Muted}" FontSize="10" Opacity="0.7"/>
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap" MinHeight="34" Foreground="{StaticResource Muted}" FontSize="12"/>
+      </DockPanel>
     </Border>
   </Grid>
 </Window>

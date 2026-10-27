@@ -38,6 +38,14 @@ public partial class MainWindow
         FillPresets(keep.Length > 0 ? keep : ReShadeManager.ActivePreset(_game));
     }
 
+    /// <summary>Right after the ReShade runtime was installed: selects the bundled preset, unless a preset is already chosen or active.</summary>
+    private void SelectDefaultPresetIfNone()
+    {
+        if (_game == null || SelectedPreset.Length > 0 || ReShadeManager.ActivePreset(_game) != null) return;
+        if (ReShadeManager.ListPresets().Contains(ReShadeManager.DefaultPresetName, StringComparer.OrdinalIgnoreCase))
+            FillPresets(ReShadeManager.DefaultPresetName);
+    }
+
     private void SelectPreset(string name)
     {
         int i = string.IsNullOrEmpty(name) ? -1 : ReShadePresetBox.Items.IndexOf(name);
@@ -205,6 +213,7 @@ public partial class MainWindow
         finally { _fetching = false; }
 
         RefreshReShade(false);
+        if (_game != null && File.Exists(ReShadeManager.CachedRuntimePath(_game))) SelectDefaultPresetIfNone();
         ReShadeEnableBox.IsChecked = keepTick;       // downloading must not change a tick that is not applied yet
 
         // Whatever the downloads did not cover is reported, not asked for again.
@@ -236,7 +245,8 @@ public partial class MainWindow
         {
             var v = ReShadeManager.InstallRuntime(dlg.FileName);
             RefreshReShade(false);
-            Status($"ReShade {v} is ready. Tick \"Enable ReShade\" and press Save Options or PLAY." +
+            SelectDefaultPresetIfNone();
+            Status($"ReShade {v} is ready, with the preset '{ReShadeManager.DefaultPresetName}' selected. Tick \"Enable ReShade\" and press Save Options or PLAY." +
                    (ReShadeManager.RuntimeHasAddon() ? "" : " ⚠ The file name does not say \"Addon\", so this may be the build WITHOUT add-on support; use Download latest to be sure."));
         }
         catch (Exception ex) { Status("ReShade install failed: " + ex.Message); }
@@ -253,7 +263,8 @@ public partial class MainWindow
             var (file, ver) = await ReShadeManager.DownloadAsync();
             try { ReShadeManager.InstallRuntime(file, ver, addon: true); } finally { File.Delete(file); }
             RefreshReShade(false);
-            Status($"ReShade {ver} is ready. Tick \"Enable ReShade\" and press Save Options or PLAY.");
+            SelectDefaultPresetIfNone();
+            Status($"ReShade {ver} is ready, with the preset '{ReShadeManager.DefaultPresetName}' selected. Tick \"Enable ReShade\" and press Save Options or PLAY.");
         }
         catch (Exception ex) { Status("ReShade download failed: " + ex.Message); }
     }

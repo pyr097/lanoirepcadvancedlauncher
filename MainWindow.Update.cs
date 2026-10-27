@@ -15,7 +15,6 @@ public partial class MainWindow
     private async Task StartupUpdateCheckAsync()
     {
         UpdateVersionText.Text = "Installed version: v" + UpdateManager.CurrentText;
-        Title = "L.A. Noire Advanced Launcher  v" + UpdateManager.CurrentText;
         UpdateAutoBox.IsChecked = _cfg.CheckUpdatesOnStartup;
         UpdatePreBox.IsChecked = _cfg.IncludePrereleases;
         if (Environment.GetCommandLineArgs().Contains("--updated")) Status("Launcher updated to v" + UpdateManager.CurrentText + ".");
