@@ -24,7 +24,7 @@ It works only on **your own** install. It never ships or repackages game files a
 5. **Apply.** The form is validated, each file is backed up, then written. It refuses to apply while the game is running.
 6. **Play.** **PLAY (and Save)** applies everything and starts `LaNoire.exe` with your launch options (plus the DXVK environment variables when Vulkan is on).
 
-## Tabs
+## Features
 
 ### Play
 - Game folder: auto-detect, Browse..., and a readout of the game's build and V-Patch support.
