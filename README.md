@@ -88,8 +88,8 @@ Requires the .NET 8 SDK on Windows. Run `build.bat` to get a single exe at `dist
 The version comes from a git tag: pushing one runs `.github/workflows/release.yml`, which builds the exe, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release). Local builds use `<Version>` in `LANoireLauncher.csproj`.
 
 ```
-git tag v2.5.4
-git push origin v2.5.4
+git tag v2.5.5
+git push origin v2.5.5
 ```
 
 ## Project layout
