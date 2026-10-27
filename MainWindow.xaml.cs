@@ -404,6 +404,8 @@ public partial class MainWindow : Window
             if (wantFps && dxvk) psi.Environment["DXVK_HUD"] = "fps";   // DXVK draws its own tiny counter
             else psi.Environment.Remove("DXVK_HUD");
             foreach (var kv in DxvkEnvironment()) psi.Environment[kv.Key] = kv.Value;
+            // ReShade is loaded from plugins\ReShade64.asi; without this it treats plugins\ as its base folder
+            if (ReShadeEnableBox.IsChecked == true) psi.Environment["RESHADE_BASE_PATH_OVERRIDE"] = _game.Root;
             game = Process.Start(psi);
             Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK]" : "   [DirectX 11]"));
         }

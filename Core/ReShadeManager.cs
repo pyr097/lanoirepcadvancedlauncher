@@ -65,6 +65,10 @@ public static partial class ReShadeManager
     private static string AsiRel(GameInstall g) => "plugins/" + AsiName(g);
     public static string AsiPath(GameInstall g) => Path.Combine(g.PluginsDir, AsiName(g));
     public static string IniPath(GameInstall g) => Path.Combine(g.Root, "ReShade.ini");
+    // ReShade uses the folder its dll sits in as its base path when it is not loaded as the exe's own proxy dll, so loaded from
+    // plugins\ it can look for (and create) ReShade.ini, ReShade.log and relative paths there instead of next to the exe.
+    public static string PluginsIniPath(GameInstall g) => Path.Combine(g.PluginsDir, "ReShade.ini");
+    private static readonly string[] PluginsArtifacts = { "ReShade.ini", "ReShade.log", "ReShadePreset.ini" };
 
     private static string ManifestPath(GameInstall g)
     {
@@ -309,6 +313,11 @@ public static partial class ReShadeManager
             if (!m.Preexisting.Contains(a, StringComparer.OrdinalIgnoreCase)) { if (File.Exists(p)) File.Delete(p); }
             else if (a == "ReShade.ini" && m.IniBackup != null && File.Exists(m.IniBackup)) File.Copy(m.IniBackup, p, true);
         }
+        foreach (var a in PluginsArtifacts)
+        {
+            var p = Path.Combine(g.PluginsDir, a);
+            try { if (File.Exists(p)) File.Delete(p); } catch (IOException) { }
+        }
         if (Directory.Exists(g.PluginsDir) && !Directory.EnumerateFileSystemEntries(g.PluginsDir).Any()) Directory.Delete(g.PluginsDir);
         var mp = ManifestPath(g);
         if (File.Exists(mp)) File.Delete(mp);
@@ -326,6 +335,24 @@ public static partial class ReShadeManager
         ini.Set("TextureSearchPaths", TexturesDir + "\\**", "GENERAL");
         if (!string.IsNullOrEmpty(preset)) ini.Set("PresetPath", Path.Combine(PresetsDir, preset), "GENERAL");
         ini.Save();
+
+        // The game is also launched with RESHADE_BASE_PATH_OVERRIDE pointing at the game folder (so the ini above is the one used), but if
+        // this ReShade build ignores that, it reads plugins\ReShade.ini instead. Keep that one pointing at the same folders.
+        try
+        {
+            Directory.CreateDirectory(g.PluginsDir);
+            var pi = PluginsIniPath(g);
+            if (!File.Exists(pi)) File.Copy(path, pi);
+            else
+            {
+                var pd = IniDocument.Load(pi, '=');
+                pd.Set("EffectSearchPaths", ShadersDir + "\\**", "GENERAL");
+                pd.Set("TextureSearchPaths", TexturesDir + "\\**", "GENERAL");
+                if (!string.IsNullOrEmpty(preset)) pd.Set("PresetPath", Path.Combine(PresetsDir, preset), "GENERAL");
+                pd.Save();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* best effort */ }
     }
 
     /// <summary>File name of the preset ReShade.ini currently points at, if it is one of the launcher's presets.</summary>
