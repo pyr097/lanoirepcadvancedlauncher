@@ -64,10 +64,10 @@ public static class PatchManager
         string label;
         if (loader && asi)
             label = GameInstall.Sha256Of(g.LoaderDll) == Known20Loader && GameInstall.Sha256Of(g.LanvpAsi) == Known20Asi
-                ? "V-Patch 2.0 installed"
-                : "V-Patch installed (unrecognised version or loader)";
+                ? "V-Patch 2.0 is installed"
+                : "V-Patch is installed (unrecognised version or loader)";
         else if (loader) label = "dinput8.dll present, but V-Patch plugin missing (another mod?)";
-        else label = "V-Patch not installed";
+        else label = "V-Patch is not installed";
         return new PatchStatus { LoaderPresent = loader, AsiPresent = asi, IniPresent = ini, Label = label };
     }
 

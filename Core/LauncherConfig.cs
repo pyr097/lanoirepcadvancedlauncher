@@ -22,7 +22,7 @@ public sealed class LauncherConfig
     public string? SettingsPath { get; set; }
     public bool OverlayEnabled { get; set; }
     public bool CheckUpdatesOnStartup { get; set; } = true;
-    public bool IncludePrereleases { get; set; }
+    public bool CloseAfterLaunch { get; set; }
     public string? SkippedVersion { get; set; }
     public List<Profile> Profiles { get; set; } = new();
 

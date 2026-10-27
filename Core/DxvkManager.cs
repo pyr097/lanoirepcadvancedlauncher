@@ -63,7 +63,7 @@ public static class DxvkManager
         var m = Load(g);
         bool d11 = IsOurs(m, "d3d11.dll") && IsOurs(m, "dxgi.dll")
                    && File.Exists(Path.Combine(g.Root, "d3d11.dll")) && File.Exists(Path.Combine(g.Root, "dxgi.dll"));
-        string label = d11 ? "DXVK installed (Vulkan)" + Ver(m) : "DXVK not installed (game uses Microsoft's Direct3D 11)";
+        string label = d11 ? "DXVK is installed (Vulkan)" + Ver(m) : "DXVK is not installed (game uses Microsoft's Direct3D 11)";
         // a d3d11/dxgi.dll we did not install: ReShade, SpecialK, another DXVK...
         var foreign = new[] { "d3d11.dll", "dxgi.dll" }
             .Where(f => File.Exists(Path.Combine(g.Root, f)) && !IsOurs(m, f)).ToList();

@@ -55,14 +55,14 @@ Edits the game's `settings.ini` (found automatically, or use **Browse...**): res
 Experimental and still being developed. It copies selected values from the PS4 remaster into the game's data file (`final\pc\out.wad.pc`). The values come from comparing the PC and PS4 files of your own copies; no game data is shipped. Tick the sets you want and press **Apply selected**: ticked sets are patched, unticked sets are set back to original.
 
 - **Fog and draw distance (38 values):** subtle.
-- **Remaster lighting values (66 values), experimental:** bloom, light radius, brightness/contrast. They may not look better, and neon signs are not affected (the remaster's neon look comes from rendering code a data patch cannot add).
+- **Remaster lighting values (66 values), experimental:** bloom, light radius, brightness/contrast. They may not look better, and neon signs are not affected.
 - **More vehicles in high detail (2 values).**
 - Options: use the exact PS4 fog values, and keep a full copy of the original file (`out.wad.pc.orig`, about 150 MB).
 
 Safety: every value is checked first (a mismatch changes nothing), and **Revert all to original** restores the exact original bytes. This tab is independent of Save Options and profiles, and refuses to run while the game is running. The Rockstar launcher's file check may flag the change, so revert before verifying.
 
 ### About (updates)
-- **Check for updates** looks at the newest release of this repository. It also does this in the background at startup (silently if offline); both can be turned off. **Include pre-releases** also offers beta versions.
+- **Check for updates** looks at the newest release of this repository. It also does this in the background at startup (silently if offline); both can be turned off.
 - **Download and install** asks first, downloads the new exe, verifies it, then replaces itself. If anything fails, the old launcher stays.
 - **Skip this version** hides a release from the automatic check.
 
@@ -88,8 +88,8 @@ Requires the .NET 8 SDK on Windows. Run `build.bat` to get a single exe at `dist
 The version comes from a git tag: pushing one runs `.github/workflows/release.yml`, which builds the exe, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release). Local builds use `<Version>` in `LANoireLauncher.csproj`.
 
 ```
-git tag v2.5.5
-git push origin v2.5.5
+git tag v2.5.6
+git push origin v2.5.6
 ```
 
 ## Project layout

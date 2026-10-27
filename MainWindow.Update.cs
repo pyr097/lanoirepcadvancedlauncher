@@ -16,7 +16,7 @@ public partial class MainWindow
     {
         UpdateVersionText.Text = "Installed version: v" + UpdateManager.CurrentText;
         UpdateAutoBox.IsChecked = _cfg.CheckUpdatesOnStartup;
-        UpdatePreBox.IsChecked = _cfg.IncludePrereleases;
+        CloseAfterLaunchBox.IsChecked = _cfg.CloseAfterLaunch;
         if (Environment.GetCommandLineArgs().Contains("--updated")) Status("Launcher updated to v" + UpdateManager.CurrentText + ".");
         if (_cfg.CheckUpdatesOnStartup) await CheckForUpdateAsync(manual: false);
     }
@@ -29,7 +29,7 @@ public partial class MainWindow
         if (manual) UpdateStatusText.Text = "Checking GitHub…";
         try
         {
-            var info = await UpdateManager.CheckAsync(_cfg.IncludePrereleases);
+            var info = await UpdateManager.CheckAsync(false);
             if (info == null)
             {
                 SetUpdate(null);
@@ -68,7 +68,7 @@ public partial class MainWindow
 
         var v = UpdateManager.Format(info.Version);
         UpdateBtn.Content = "Update available: v" + v;
-        UpdateStatusText.Text = $"Version {v} is available{(info.Prerelease ? " (pre-release)" : "")}. You have v{UpdateManager.CurrentText}.";
+        UpdateStatusText.Text = $"Version {v} is available. You have v{UpdateManager.CurrentText}.";
         UpdateNotesText.Text = info.Notes.Replace("\r\n", "\n").Trim();
     }
 
@@ -78,11 +78,13 @@ public partial class MainWindow
     private void UpdateOptions_Click(object sender, RoutedEventArgs e)
     {
         _cfg.CheckUpdatesOnStartup = UpdateAutoBox.IsChecked == true;
-        var pre = UpdatePreBox.IsChecked == true;
-        var changed = pre != _cfg.IncludePrereleases;
-        _cfg.IncludePrereleases = pre;
         _cfg.Save();
-        if (changed) _ = CheckForUpdateAsync(manual: true);
+    }
+
+    private void CloseAfterLaunch_Click(object sender, RoutedEventArgs e)
+    {
+        _cfg.CloseAfterLaunch = CloseAfterLaunchBox.IsChecked == true;
+        _cfg.Save();
     }
 
     private void UpdateSkip_Click(object sender, RoutedEventArgs e)

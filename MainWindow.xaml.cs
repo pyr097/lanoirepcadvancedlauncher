@@ -194,7 +194,7 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
             PatchManager.Install(_game!, zip, true);
         }
-        LoadFromDisk(); Status("V-Patch installed. Run the game once to generate lanvp.ini if it is missing.");
+        LoadFromDisk(); Status("V-Patch is installed. Run the game once to generate lanvp.ini if it is missing.");
     }
 
     private void InstallZip_Click(object sender, RoutedEventArgs e)
@@ -253,7 +253,7 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { Status("Install cancelled."); return; }
             DxvkManager.Apply(_game!, api, archive, version, true);
         }
-        RefreshDxvk(); Status("DXVK installed. Tick \"Render with Vulkan\" and press Play to use it.");
+        RefreshDxvk(); Status("DXVK is installed. Tick \"Render with Vulkan\" and press Play to use it.");
     }
 
     private void DxvkInstallArchive_Click(object sender, RoutedEventArgs e)
@@ -412,6 +412,11 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) { Status("Launch failed: " + ex.Message); return; }
         if (game != null && OverlayBox.IsChecked == true) StartOverlay(game, SelectedApi != DxvkApi.Off);
+        if (game != null && _cfg.CloseAfterLaunch)
+        {
+            if (OverlayBox.IsChecked == true) Status(StatusText.Text + "   (launcher kept open for the FPS overlay)");
+            else Close();
+        }
     }
 
     // ---------- FPS overlay ----------
