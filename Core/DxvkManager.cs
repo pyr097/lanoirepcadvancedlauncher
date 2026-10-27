@@ -79,7 +79,7 @@ public static class DxvkManager
     public static async Task<(string file, string tag)> DownloadAsync(string tag)
     {
         using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("LANoireLauncher/1.0");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("LANoireLauncher/" + UpdateManager.CurrentText);
         var api = tag.Equals("latest", StringComparison.OrdinalIgnoreCase)
             ? "https://api.github.com/repos/doitsujin/dxvk/releases/latest"
             : "https://api.github.com/repos/doitsujin/dxvk/releases/tags/" + Uri.EscapeDataString(tag);

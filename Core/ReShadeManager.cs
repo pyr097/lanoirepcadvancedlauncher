@@ -159,7 +159,7 @@ public static partial class ReShadeManager
     private static HttpClient NewHttp()
     {
         var h = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        h.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) LANoireLauncher/1.0");
+        h.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) LANoireLauncher/" + UpdateManager.CurrentText);
         return h;
     }
 

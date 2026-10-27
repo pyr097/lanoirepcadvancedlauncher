@@ -79,6 +79,12 @@ ReShade works with DXVK **on or off**. It is loaded through the ASI loader that 
 - **RTGI:** RTGI is a paid shader from its author's Patreon and is not downloaded or bundled. Add your own RTGI files, then **Make RTGI preset** creates a preset that switches on the RTGI technique(s) with ReShade's default settings (an existing preset of that name is never overwritten). RTGI needs the game's depth buffer: **Make depth-check preset** (needs `DisplayDepth.fx` from the standard effects) shows ReShade's depth view so you can set the `RESHADE_DEPTH_INPUT_*` options in the in-game overlay (Home).
 - If ReShade does not appear in the game, open `ReShade.log` in the game folder: it shows whether ReShade loaded and which graphics API it hooked.
 
+### About tab (updates)
+
+- **Check for updates** reads the newest release of this repository on GitHub. On startup the launcher does the same in the background and, if a newer version exists, shows an **Update available** button in the header (silent when offline). Both can be turned off, and **Include pre-releases** also offers beta tags.
+- **Download and install** asks first, downloads `LANoireLauncher.exe` from the release, checks its SHA-256 (GitHub's asset digest, or the `LANoireLauncher.exe.sha256` asset) and size, then swaps itself: the running exe is renamed to `LANoireLauncher.exe.old`, the new one is put in place and started, and the old file is deleted on the next start. If anything fails the old launcher stays in place. If the launcher sits in a folder it cannot write to, it opens the release page instead.
+- **Skip this version** hides that release from the automatic check (a manual check still shows it). Settings, profiles and backups live in `%AppData%` and are never touched by an update.
+
 ### Graphics tab
 Edits the game's `settings.ini` (path auto-found in the game folder, Documents, LocalAppData or AppData; use **Browse...** otherwise): resolution (`WIDTHxHEIGHTxHZ`), antialiasing, anisotropic filtering, SSAO, facial quality, texture, shadow, lighting, environment map and LOD detail, interface size, threading and the game's own command line. The dropdowns are editable, so you can type a value that is not listed.
 
@@ -95,6 +101,17 @@ The profile box at the top right saves, loads and deletes named profiles. A prof
 - **DXVK on:** the launcher starts the game with `DXVK_HUD=fps` and DXVK draws its own small counter, and the launcher adds a small "DXVK" label in the top-right corner of the game window (click-through, same style).
 - **DXVK off:** click-through "FPS: 120.0" text in the same style as DXVK's counter (updated 10 times a second) sits in the top-left corner of the game window, fed by Windows' own DXGI present events (ETW). Nothing is injected into the game. It only shows while the game window is in front; **Ctrl+Shift+F** hides/shows it.
 - Reading those events needs administrator rights (or membership of "Performance Log Users"). At startup the launcher offers to restart as administrator and explains why; if you decline, the launcher says so and the game starts normally. A game started from an elevated launcher also runs elevated. With DXVK on, no rights are needed.
+
+## Releasing a new version
+
+The version comes from a git tag. Push one and `.github/workflows/release.yml` builds the exe with that version, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release):
+
+```
+git tag v2.5.1
+git push origin v2.5.1
+```
+
+Tags must look like `v1.2.3`. For local builds the version is the `<Version>` in `LANoireLauncher.csproj`.
 
 ## Safety and data
 - Every file is backed up to `%AppData%\LANoireLauncher\backups\<timestamp>` before it is changed.
@@ -119,6 +136,7 @@ For development: `dotnet run`.
 - `Core/Field.cs`: one editable setting and its control.
 - `Core/LauncherConfig.cs`: config, profiles and backups.
 - `Core/ReShadeManager.cs`, `Core/ReShadeManager.Dependencies.cs`, `MainWindow.ReShade.cs`: ReShade runtime, shader/preset store, `.asi` install, the missing-file planner and pack downloads, and the ReShade tab.
+- `Core/UpdateManager.cs`, `MainWindow.Update.cs`: GitHub release check, verified download and self-replace.
 - `Core/FpsCounter.cs`, `Overlay/`: the FPS badge.
 
 ## Credits and licences

@@ -75,7 +75,7 @@ public static class PatchManager
     public static async Task<string> DownloadLatestAsync()
     {
         using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("LANoireLauncher/1.0");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("LANoireLauncher/" + UpdateManager.CurrentText);
         var json = await http.GetStringAsync("https://api.github.com/repos/VaanaCZ/LANVP/releases/latest");
         using var doc = JsonDocument.Parse(json);
         string? url = null;

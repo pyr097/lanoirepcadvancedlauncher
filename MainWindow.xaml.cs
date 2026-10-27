@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         BuildFields();
         Loaded += async (_, _) => await InitAsync();
+        Loaded += async (_, _) => await StartupUpdateCheckAsync();
     }
 
     // ---------- field definitions ----------

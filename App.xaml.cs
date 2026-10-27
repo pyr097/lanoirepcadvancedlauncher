@@ -14,6 +14,7 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        LANoireLauncher.Core.UpdateManager.CleanupAfterUpdate();      // removes LANoireLauncher.exe.old left by the last update
         base.OnStartup(e);
     }
 

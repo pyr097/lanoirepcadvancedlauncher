@@ -1,0 +1,47 @@
+# Publishes a GitHub release with the single-file exe (+ SHA-256) whenever a version tag is pushed:
+#   git tag v2.5.1
+#   git push origin v2.5.1
+# The launcher's updater reads these releases. A tag with a dash (v1.2.0-beta.1) is published as a pre-release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version from tag
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v','V')
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish LANoireLauncher.csproj -c Release -o _pub -p:Version=${{ steps.ver.outputs.version }}
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item _pub/LANoireLauncher.exe release/LANoireLauncher.exe
+          $h = (Get-FileHash release/LANoireLauncher.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  LANoireLauncher.exe" | Out-File -Encoding ascii release/LANoireLauncher.exe.sha256
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/LANoireLauncher.exe
+            release/LANoireLauncher.exe.sha256
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

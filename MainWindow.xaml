@@ -16,6 +16,7 @@
     <Border Grid.Row="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="24,14">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="UpdateBtn" Visibility="Collapsed" Style="{StaticResource PrimaryButton}" Click="UpdateBtn_Click" Margin="0,0,18,0"/>
           <TextBlock Text="PROFILE" Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="0,0,10,0"/>
           <ComboBox x:Name="ProfileBox" Width="170" IsEditable="True"/>
           <Button Content="Load" Click="LoadProfile_Click" Margin="8,0,0,0"/>
@@ -33,7 +34,7 @@
     </Border>
 
     <!-- tabs -->
-    <TabControl Grid.Row="1" Margin="24,12,24,0">
+    <TabControl x:Name="MainTabs" Grid.Row="1" Margin="24,12,24,0">
 
       <!-- PLAY -->
       <TabItem Header="Play">
@@ -318,6 +319,47 @@
             </Border>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16" TextWrapping="Wrap"
                        Text="Works only on your own installation. The values were found by comparing the PC and PS4 attribute files of your own copies; no game data is included in this launcher."/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ABOUT / UPDATES -->
+      <TabItem x:Name="AboutTab" Header="About">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="0,0,10,0">
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="LAUNCHER UPDATES" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="UpdateVersionText" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBlock x:Name="UpdateStatusText" Style="{StaticResource Hint}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                <Border x:Name="UpdateNotesBox" Visibility="Collapsed" Background="{StaticResource Surface2}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                  <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" FontSize="12"/>
+                  </ScrollViewer>
+                </Border>
+                <ProgressBar x:Name="UpdateProgress" Visibility="Collapsed" Height="6" Minimum="0" Maximum="1" Margin="0,0,0,10"
+                             Foreground="{StaticResource Accent}" Background="{StaticResource Surface2}" BorderThickness="0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                  <Button x:Name="UpdateCheckBtn" Content="Check for updates" Click="UpdateCheck_Click"/>
+                  <Button x:Name="UpdateInstallBtn" Content="Download and install" Style="{StaticResource PrimaryButton}" Visibility="Collapsed" Click="UpdateInstall_Click" Margin="8,0,0,0"/>
+                  <Button x:Name="UpdateNotesBtn" Content="Release page" Visibility="Collapsed" Click="UpdateRelease_Click" Margin="8,0,0,0"/>
+                  <Button x:Name="UpdateSkipBtn" Content="Skip this version" Visibility="Collapsed" Click="UpdateSkip_Click" Margin="8,0,0,0"/>
+                </StackPanel>
+                <CheckBox x:Name="UpdateAutoBox" Content="Check for updates when the launcher starts" Click="UpdateOptions_Click" Margin="0,0,0,4"/>
+                <CheckBox x:Name="UpdatePreBox" Content="Include pre-releases (beta builds)" Click="UpdateOptions_Click"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0" TextWrapping="Wrap"
+                           Text="Updates come from this project's GitHub releases. The download is checked against its published SHA-256 before the launcher replaces itself and restarts; your settings, profiles and backups in %AppData% are untouched. Nothing is downloaded without your confirmation."/>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="PROJECT" Style="{StaticResource SectionLabel}"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button Content="Open GitHub page" Click="OpenRepo_Click"/>
+                  <Button Content="Open data folder" Click="OpenDataFolder_Click" Margin="8,0,0,0"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
