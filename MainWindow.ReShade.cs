@@ -157,39 +157,49 @@ public partial class MainWindow
     private async Task<bool> DownloadReadinessAsync(Readiness plan, string preset, bool withRuntime)
     {
         _fetching = true;
-        var tried = new HashSet<string>();
+        var tried = new HashSet<string>();         // packs already downloaded
+        var attempted = new HashSet<string>();     // everything already attempted, so nothing is fetched twice
         var errors = new List<string>();
         var added = new ImportResult();
         bool keepTick = ReShadeEnableBox.IsChecked == true;
+        var current = plan;
         try
         {
-            foreach (var n in plan.Downloads)
+            // A file can turn out to live in the next pack on its list (e.g. FXAA is SweetFX, not ReShade's standard effects),
+            // so plan and download again until there is nothing new left to try.
+            for (int round = 0; round < 4 && current.Downloads.Count > 0; round++)
             {
-                try
+                foreach (var n in current.Downloads)
                 {
-                    switch (n.Kind)
+                    if (!attempted.Add(n.Title)) continue;
+                    try
                     {
-                        case NeedKind.Loader:
-                            if (GameInstall.IsRunning()) { errors.Add(n.Title + ": close L.A. Noire first."); break; }
-                            Status("Downloading V-Patch…");
-                            var zip = await PatchManager.DownloadLatestAsync();
-                            try { PatchManager.Install(_game!, zip, false); }
-                            catch (LoaderConflictException) { errors.Add(n.Title + ": a different dinput8.dll is in the game folder. Use Install V-Patch on the Patch tab, which asks before replacing it."); }
-                            finally { try { File.Delete(zip); } catch { } }
-                            var ps = PatchManager.GetStatus(_game!);
-                            PatchStatusText.Text = ps.Label + (ps.Usable && !ps.IniPresent ? "  —  run the game once to generate lanvp.ini" : "");
-                            break;
-                        case NeedKind.Runtime:
-                            Status("Downloading ReShade…");
-                            await ReShadeManager.DownloadAndInstallRuntimeAsync();
-                            break;
-                        case NeedKind.Pack:
-                            tried.Add(n.Pack!.Id);
-                            added.Add(await ReShadeManager.InstallPackAsync(n.Pack!, Status));
-                            break;
+                        switch (n.Kind)
+                        {
+                            case NeedKind.Loader:
+                                if (GameInstall.IsRunning()) { errors.Add(n.Title + ": close L.A. Noire first."); break; }
+                                Status("Downloading V-Patch…");
+                                var zip = await PatchManager.DownloadLatestAsync();
+                                try { PatchManager.Install(_game!, zip, false); }
+                                catch (LoaderConflictException) { errors.Add(n.Title + ": a different dinput8.dll is in the game folder. Use Install V-Patch on the Patch tab, which asks before replacing it."); }
+                                finally { try { File.Delete(zip); } catch { } }
+                                var ps = PatchManager.GetStatus(_game!);
+                                PatchStatusText.Text = ps.Label + (ps.Usable && !ps.IniPresent ? "  —  run the game once to generate lanvp.ini" : "");
+                                break;
+                            case NeedKind.Runtime:
+                                Status("Downloading ReShade…");
+                                await ReShadeManager.DownloadAndInstallRuntimeAsync();
+                                break;
+                            case NeedKind.Pack:
+                                tried.Add(n.Pack!.Id);
+                                added.Add(await ReShadeManager.InstallPackAsync(n.Pack!, Status));
+                                break;
+                        }
                     }
+                    catch (Exception ex) { errors.Add($"{n.Title}: {ex.Message}"); }
                 }
-                catch (Exception ex) { errors.Add($"{n.Title}: {ex.Message}"); }
+                current = ReShadeManager.PlanReadiness(_game!, preset, withRuntime, tried);
+                if (current.Downloads.All(d => attempted.Contains(d.Title))) break;
             }
         }
         finally { _fetching = false; }
@@ -197,12 +207,11 @@ public partial class MainWindow
         RefreshReShade(false);
         ReShadeEnableBox.IsChecked = keepTick;       // downloading must not change a tick that is not applied yet
 
-        // Second pass: whatever the downloads did not cover is reported, not asked for again.
-        var after = ReShadeManager.PlanReadiness(_game!, preset, withRuntime, tried);
+        // Whatever the downloads did not cover is reported, not asked for again.
         var leftover = new List<string>(errors);
-        foreach (var n in after.Downloads.Where(d => d.Kind != NeedKind.Pack || !errors.Any(e => e.StartsWith(d.Title + ":"))))
+        foreach (var n in current.Downloads.Where(d => !errors.Any(e => e.StartsWith(d.Title + ":"))))
             leftover.Add(n.Title + " is still missing" + (n.Files.Count > 0 ? " (" + FileList(n.Files, 4) + ")" : "") + ".");
-        foreach (var (reason, files) in after.Cannot) leftover.Add($"{FileList(files)}: {reason}.");
+        foreach (var (reason, files) in current.Cannot) leftover.Add($"{FileList(files)}: {reason}.");
 
         if (leftover.Count == 0)
         {
@@ -219,7 +228,7 @@ public partial class MainWindow
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Select the ReShade setup (.exe), a zip, or ReShade32.dll / ReShade64.dll",
+            Title = "Select the ReShade setup WITH ADD-ON SUPPORT (ReShade_Setup_x.y.z_Addon.exe), a zip, or ReShade32.dll / ReShade64.dll",
             Filter = "ReShade setup, zip or dll|*.exe;*.zip;*.dll|All files|*.*",
         };
         if (dlg.ShowDialog() != true) return;
@@ -227,21 +236,22 @@ public partial class MainWindow
         {
             var v = ReShadeManager.InstallRuntime(dlg.FileName);
             RefreshReShade(false);
-            Status($"ReShade {v} is ready. Tick \"Enable ReShade\" and press Save Options or PLAY.");
+            Status($"ReShade {v} is ready. Tick \"Enable ReShade\" and press Save Options or PLAY." +
+                   (ReShadeManager.RuntimeHasAddon() ? "" : " ⚠ The file name does not say \"Addon\", so this may be the build WITHOUT add-on support; use Download latest to be sure."));
         }
         catch (Exception ex) { Status("ReShade install failed: " + ex.Message); }
     }
 
     private async void ReShadeDownload_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show("Download the latest ReShade setup from reshade.me and take the ReShade dlls out of it?\n\n" +
+        if (MessageBox.Show("Download the latest ReShade setup WITH add-on support from reshade.me and take the ReShade dlls out of it?\n\n" +
                 "ReShade is © crosire, BSD 3-Clause licence. Nothing is installed into the game until you tick \"Enable ReShade\" and apply.",
                 "Download ReShade", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
         {
             Status("Downloading ReShade…");
             var (file, ver) = await ReShadeManager.DownloadAsync();
-            try { ReShadeManager.InstallRuntime(file, ver); } finally { File.Delete(file); }
+            try { ReShadeManager.InstallRuntime(file, ver, addon: true); } finally { File.Delete(file); }
             RefreshReShade(false);
             Status($"ReShade {ver} is ready. Tick \"Enable ReShade\" and press Save Options or PLAY.");
         }

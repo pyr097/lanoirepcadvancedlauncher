@@ -54,9 +54,29 @@ public static partial class ReShadeManager
         Claims = _ => true,
     };
 
+    // FXAA, Levels, LiftGammaGain, LumaSharpen, SMAA, Vibrance, Curves, Tonemap... are CeeJay.dk's SweetFX package.
+    // ReShade's installer lists it separately from "Standard effects", and the crosire/reshade-shaders slim zip does not contain them.
+    private static readonly HashSet<string> SweetFxFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FXAA.fx", "Levels.fx", "LiftGammaGain.fx", "LumaSharpen.fx", "SMAA.fx", "Vibrance.fx", "Curves.fx", "Technicolor.fx",
+        "Technicolor2.fx", "Tonemap.fx", "Vignette.fx", "FakeHDR.fx", "DPX.fx", "Cartoon.fx", "ColorMatrix.fx", "Monochrome.fx",
+        "Nostalgia.fx", "Sepia.fx", "Border.fx", "CAS.fx",
+    };
+
+    public static readonly ShaderPack SweetFx = new()
+    {
+        Id = "sweetfx",
+        Title = "SweetFX effects (CeeJay.dk)",
+        Url = "https://github.com/CeeJayDK/SweetFX/archive/HEAD.zip",
+        Source = "github.com/CeeJayDK/SweetFX",
+        Licence = "© CeeJay.dk, see the repository",
+        Claims = n => SweetFxFiles.Contains(Path.GetFileName(n)),
+    };
+
     public static readonly ShaderPack[] Packs =
     {
         Standard,
+        SweetFx,
         new()
         {
             Id = "immerse",
@@ -89,14 +109,17 @@ public static partial class ReShadeManager
     private const string RtgiReason =
         "RTGI is a paid shader (from its author's Patreon), so the launcher cannot download it. Add the files you have with Add from folder / zip";
 
-    /// <summary>The pack a file or include path normally comes from; null for shaders that are not freely downloadable (RTGI).</summary>
-    private static ShaderPack? PackFor(string pathOrName)
+    /// <summary>
+    /// Where a file or include path normally comes from, most likely source first; null for shaders that are not freely downloadable (RTGI).
+    /// A file that is not in the first source is looked for in the next one, so a wrong guess costs one extra download, not a dead end.
+    /// </summary>
+    private static List<ShaderPack>? PacksFor(string pathOrName)
     {
         var n = pathOrName.Replace('\\', '/').ToLowerInvariant();
         if (n.Contains("rtgi")) return null;
         foreach (var p in Packs)
-            if (p.Id != Standard.Id && p.Claims(n)) return p;
-        return Standard;
+            if (p.Id != Standard.Id && p.Id != SweetFx.Id && p.Claims(n)) return new List<ShaderPack> { p };
+        return SweetFx.Claims(n) ? new List<ShaderPack> { SweetFx, Standard } : new List<ShaderPack> { Standard, SweetFx };
     }
 
     private static bool HasAnyEffect() =>
@@ -196,7 +219,14 @@ public static partial class ReShadeManager
                     Detail = "github.com/VaanaCZ/LANVP, © VaanaCZ, CC BY-NC 4.0. Installs V-Patch into the game folder; ReShade loads through it.",
                 });
             if (!File.Exists(CachedDll(g)))
-                r.Downloads.Add(new Need { Kind = NeedKind.Runtime, Title = "ReShade runtime", Detail = "reshade.me, © crosire, BSD 3-Clause" });
+                r.Downloads.Add(new Need { Kind = NeedKind.Runtime, Title = "ReShade runtime (with add-on support)", Detail = "reshade.me, © crosire, BSD 3-Clause" });
+            else if (!RuntimeHasAddon())
+                r.Downloads.Add(new Need
+                {
+                    Kind = NeedKind.Runtime,
+                    Title = "ReShade runtime (with add-on support)",
+                    Detail = "reshade.me, © crosire, BSD 3-Clause. Replaces the cached ReShade, which is not known to be the add-on build.",
+                });
         }
 
         var packNeeds = new Dictionary<string, Need>();
@@ -210,11 +240,12 @@ public static partial class ReShadeManager
 
         void Want(string file)
         {
-            var pack = PackFor(file);
-            if (pack == null) { Cannot(RtgiReason, file); return; }
-            if (tried.Contains(pack.Id))
+            var chain = PacksFor(file);
+            if (chain == null) { Cannot(RtgiReason, file); return; }
+            var pack = chain.FirstOrDefault(c => !tried.Contains(c.Id));
+            if (pack == null)
             {
-                Cannot($"not in the {pack.Title} download (renamed or removed upstream, or part of a paid pack). Add it with Add from folder / zip", file);
+                Cannot($"not found in {string.Join(" or ", chain.Select(c => c.Title))} (renamed or removed upstream, or part of a paid pack). Add it with Add from folder / zip", file);
                 return;
             }
             if (!packNeeds.TryGetValue(pack.Id, out var n))
@@ -266,11 +297,11 @@ public static partial class ReShadeManager
         finally { try { File.Delete(tmp); } catch { /* temp file, the OS cleans it up eventually */ } }
     }
 
-    /// <summary>Downloads the newest ReShade setup, takes the dlls out of it and caches them. Returns the version.</summary>
+    /// <summary>Downloads the newest ReShade setup with add-on support, takes the dlls out of it and caches them. Returns the version.</summary>
     public static async Task<string> DownloadAndInstallRuntimeAsync()
     {
         var (file, ver) = await DownloadAsync();
-        try { return InstallRuntime(file, ver); }
+        try { return InstallRuntime(file, ver, addon: true); }
         finally { try { File.Delete(file); } catch { } }
     }
 }

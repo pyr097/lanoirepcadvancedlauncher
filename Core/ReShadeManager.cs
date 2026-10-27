@@ -101,13 +101,16 @@ public static partial class ReShadeManager
 
         var parts = new List<string>
         {
-            cached ? "ReShade " + (ver.Length > 0 ? ver + " " : "") + "ready in the launcher" : "ReShade is not installed in the launcher yet",
+            cached ? "ReShade " + (ver.Length > 0 ? ver + " " : "") + (RuntimeHasAddon() ? "(add-on support) " : "(NOT known to have add-on support: use Download latest) ") + "ready in the launcher" : "ReShade is not installed in the launcher yet",
             ours ? "enabled (plugins\\" + AsiName(g) + ")" : "not enabled in the game folder",
         };
         if (!File.Exists(g.LoaderDll)) parts.Add("V-Patch's ASI loader (dinput8.dll) is missing, so ReShade cannot load");
         if (foreign != null) parts.Add("conflict: " + foreign + " is a ReShade file this launcher did not install");
         return new ReShadeStatus { RuntimeCached = cached, Installed = ours, Label = string.Join("  —  ", parts), ShaderSummary = ShaderSummary() };
     }
+
+    /// <summary>True if the cached runtime was installed from the build with add-on support.</summary>
+    public static bool RuntimeHasAddon() => File.Exists(Path.Combine(RuntimeDir, "addon.txt"));
 
     private static string RuntimeVersion()
     {
@@ -156,17 +159,17 @@ public static partial class ReShadeManager
         return h;
     }
 
-    /// <summary>Newest ReShade setup exe from reshade.me (the normal build, not the add-on one). Returns the temp file and its version.</summary>
+    /// <summary>Newest ReShade setup exe from reshade.me, always the build WITH add-on support (ReShade_Setup_x.y.z_Addon.exe). Returns the temp file and its version.</summary>
     public static async Task<(string file, string version)> DownloadAsync()
     {
         using var http = NewHttp();
         var html = await http.GetStringAsync("https://reshade.me/");
-        var m = Regex.Match(html, @"downloads/ReShade_Setup_(\d+(?:\.\d+)+)\.exe", RegexOptions.IgnoreCase);
+        var m = Regex.Match(html, @"downloads/ReShade_Setup_(\d+(?:\.\d+)+)_Addon\.exe", RegexOptions.IgnoreCase);
         if (!m.Success)
-            throw new InvalidOperationException("Could not find the download link on reshade.me. Download the setup there yourself and use \"Install from setup…\".");
+            throw new InvalidOperationException("Could not find the add-on build's download link on reshade.me. Download \"ReShade ... with full add-on support\" there yourself and use \"Install from setup…\".");
         var ver = m.Groups[1].Value;
-        var tmp = Path.Combine(Path.GetTempPath(), "ReShade_Setup_" + ver + "_" + Guid.NewGuid().ToString("N") + ".exe");
-        await File.WriteAllBytesAsync(tmp, await http.GetByteArrayAsync("https://reshade.me/downloads/ReShade_Setup_" + ver + ".exe"));
+        var tmp = Path.Combine(Path.GetTempPath(), "ReShade_Setup_" + ver + "_Addon_" + Guid.NewGuid().ToString("N") + ".exe");
+        await File.WriteAllBytesAsync(tmp, await http.GetByteArrayAsync("https://reshade.me/downloads/ReShade_Setup_" + ver + "_Addon.exe"));
         return (tmp, ver);
     }
 
@@ -188,7 +191,7 @@ public static partial class ReShadeManager
     }
 
     /// <summary>Takes ReShade32.dll / ReShade64.dll out of a setup exe, a zip, or a bare dll and caches them. Returns the version.</summary>
-    public static string InstallRuntime(string source, string? versionHint = null)
+    public static string InstallRuntime(string source, string? versionHint = null, bool? addon = null)
     {
         var want = new[] { "ReShade32.dll", "ReShade64.dll" };
         var found = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -227,6 +230,11 @@ public static partial class ReShadeManager
         }
         ver = string.IsNullOrWhiteSpace(ver) ? "" : ver!.Trim();
         File.WriteAllText(Path.Combine(RuntimeDir, "version.txt"), ver);
+        // The dll itself does not say whether it is the add-on build, so remember it: from the caller (our own download), else from the
+        // setup's file name (ReShade_Setup_x.y.z_Addon.exe). A bare dll or a renamed zip counts as "not known to have add-on support".
+        bool isAddon = addon ?? Path.GetFileName(source).Contains("addon", StringComparison.OrdinalIgnoreCase);
+        var marker = Path.Combine(RuntimeDir, "addon.txt");
+        if (isAddon) File.WriteAllText(marker, "1"); else if (File.Exists(marker)) File.Delete(marker);
         return ver.Length > 0 ? ver : "(version unknown)";
     }
 
@@ -253,7 +261,7 @@ public static partial class ReShadeManager
 
         var cache = CachedDll(g);
         if (!File.Exists(cache))
-            throw new InvalidOperationException("ReShade is not installed in the launcher yet. Use \"Install from setup…\" or \"Download latest\" first.");
+            throw new InvalidOperationException("ReShade is not installed in the launcher yet. Use \"Install from setup…\" (the add-on version) or \"Download latest\" first.");
         if (!File.Exists(g.LoaderDll))
             throw new InvalidOperationException("ReShade is loaded through the ASI loader (dinput8.dll) that comes with V-Patch. Install V-Patch first.");
         var foreign = FindForeign(g, m);
