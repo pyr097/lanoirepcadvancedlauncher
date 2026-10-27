@@ -1,4 +1,5 @@
-# L.A. Noire Advanced Launcher (Unlocked FPS, Vulkan and much more)
+# L.A. Noire Advanced Launcher
+(Unlocked FPS, Vulkan, Reshade and much more)
 
 <p align="center">
   <a href="docs/screenshots/play.png"><img src="docs/screenshots/play.png" alt="Play tab" width="32%"></a>
