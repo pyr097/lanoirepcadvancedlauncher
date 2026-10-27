@@ -137,6 +137,28 @@ public static partial class ReShadeManager
             : new List<ShaderPack> { Standard, SweetFx, StandardFull };
     }
 
+    // The one shader file that ships inside the launcher: NVIDIA's FXAA 3.11 header (Timothy Lottes), which FXAA.fx includes.
+    // ReShade's slim branch leaves it out, so after packs are imported it is written next to FXAA.fx if no copy exists anywhere in the store.
+    private const string BundledFxaaHeader = "Fxaa3_11.h";
+
+    /// <summary>Writes the bundled Fxaa3_11.h beside FXAA.fx if the store has FXAA.fx but no Fxaa3_11.h. An existing copy is never replaced. True if it wrote the file.</summary>
+    public static bool EnsureBundledHeaders()
+    {
+        try
+        {
+            if (!Directory.Exists(ShadersDir)) return false;
+            var fxaa = Directory.EnumerateFiles(ShadersDir, "FXAA.fx", SearchOption.AllDirectories).FirstOrDefault();
+            if (fxaa == null) return false;
+            if (Directory.EnumerateFiles(ShadersDir, BundledFxaaHeader, SearchOption.AllDirectories).Any()) return false;
+            using var res = typeof(ReShadeManager).Assembly.GetManifestResourceStream(BundledFxaaHeader);
+            if (res == null) return false;
+            using var dst = File.Create(Path.Combine(Path.GetDirectoryName(fxaa)!, BundledFxaaHeader));
+            res.CopyTo(dst);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }      // best effort; MissingIncludes then reports it
+    }
+
     private static bool HasAnyEffect() =>
         Directory.Exists(ShadersDir) && Directory.EnumerateFiles(ShadersDir, "*.fx", SearchOption.AllDirectories).Any();
 
@@ -164,6 +186,8 @@ public static partial class ReShadeManager
     {
         var missing = new List<string>();
         if (!Directory.Exists(ShadersDir)) return missing;
+
+        EnsureBundledHeaders();      // a header we ship ourselves is never reported as missing
 
         var files = Directory.EnumerateFiles(ShadersDir, "*", SearchOption.AllDirectories).ToList();
         var relToFull = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

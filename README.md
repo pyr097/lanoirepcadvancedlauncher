@@ -117,7 +117,7 @@ Tags must look like `v1.2.3`. For local builds the version is the `<Version>` in
 - Every file is backed up to `%AppData%\LANoireLauncher\backups\<timestamp>` before it is changed.
 - Only files the launcher added are removed on uninstall (tracked in `%AppData%\LANoireLauncher\manifests`); with no record, nothing is deleted.
 - The first version of `settings.ini` is kept once in `%AppData%\LANoireLauncher\original`.
-- V-Patch, DXVK, ReShade and shaders are never bundled. They come from an archive you pick or from GitHub at runtime.
+- V-Patch, DXVK, ReShade and shaders are never bundled. They come from an archive you pick or from GitHub at runtime. The one exception is `Fxaa3_11.h` (NVIDIA FXAA 3.11 by Timothy Lottes, which `FXAA.fx` includes and ReShade's slim shader branch omits): it is embedded in the launcher and written next to `FXAA.fx` in `%AppData%\LANoireLauncher\reshade\Shaders` after shaders are downloaded or imported, only if no copy is there yet.
 - Launcher data (config, profiles, backups, manifests, DXVK cache and logs, ReShade runtime, shaders and presets) lives in `%AppData%\LANoireLauncher`. The game folder only gets the DLLs/files described above (V-Patch, DXVK, `plugins\ReShade32.asi` and `ReShade.ini`).
 
 ## Build

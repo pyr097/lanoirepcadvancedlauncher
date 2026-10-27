@@ -413,6 +413,7 @@ public static partial class ReShadeManager
             foreach (var e in zip.Entries)
                 if (e.Name.Length > 0) Place(e.FullName, () => e.Open(), r, have);
         }
+        EnsureBundledHeaders();      // after every import, so FXAA never ends up without its header
         return r;
     }
 
