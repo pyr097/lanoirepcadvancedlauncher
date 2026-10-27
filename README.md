@@ -11,7 +11,7 @@
   <a href="docs/screenshots/enhancements.png"><img src="docs/screenshots/enhancements.png" alt="Enhancements tab" width="32%"></a>
 </p>
 
-A dark, noir-themed Windows launcher for the PC version of L.A. Noire. It sets up V-Patch, optional Vulkan rendering (DXVK), optional ReShade with presets, graphics settings and launch options in one window, and starts the game.
+A Windows launcher for the PC version of L.A. Noire. It works on the Rockstar Launcher, Steam and "other" versions. Latest game build is recommended. It sets up V-Patch, optional Vulkan rendering (DXVK), optional ReShade with presets, graphics settings and launch options in one window, and starts the game.
 
 It works only on **your own** install. It never ships or repackages game files and does not touch or bypass any DRM; it just starts `LaNoire.exe`.
 
