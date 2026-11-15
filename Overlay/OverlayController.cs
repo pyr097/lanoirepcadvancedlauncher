@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
-using LANoireLauncher.Core;
 
 namespace LANoireLauncher.Overlay;
 
 /// <summary>
-/// Shows the FPS badge only while the game window is in front, refreshes ten times a second, and cleans up when the game exits.
-/// It runs entirely in the launcher process.
+/// DXVK draws the FPS counter itself (DXVK_HUD=fps, set at launch). This only places a small "DXVK" label in the top-right
+/// corner of the game window while the game is in front, and cleans up when the game exits.
+/// It runs entirely in the launcher process and needs no special rights.
 /// </summary>
 public sealed class OverlayController : IDisposable
 {
@@ -15,23 +15,19 @@ public sealed class OverlayController : IDisposable
 
     private readonly OverlayWindow _win = new();
     private readonly Process _game;
-    private readonly FpsCounter? _counter;   // null = DXVK mode (label only)
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
-    private readonly Action<string> _say;
     private IntPtr _hwnd;
     private int _tickNo;
-    private double _shownFps = -1;
     private bool _disposed;
 
     public bool UserVisible { get; set; } = true;
     public event Action? Finished;
 
-    public OverlayController(Process game, FpsCounter? counter, Action<string> say)
+    public OverlayController(Process game)
     {
-        _game = game; _counter = counter; _say = say;
+        _game = game;
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
-        if (counter != null) _say("FPS overlay on - it appears once the game window is in front. Ctrl+Shift+F shows/hides it.");
     }
 
     private void Tick()
@@ -51,15 +47,8 @@ public sealed class OverlayController : IDisposable
         bool show = UserVisible && hwnd != IntPtr.Zero && GetForegroundWindow() == hwnd;
         if (!show) { if (_win.IsVisible) _win.Hide(); return; }
 
-        if (_counter != null)
-        {
-            var fps = _counter.CurrentFps();
-            if (fps != null) _shownFps = fps.Value;       // keep the last value instead of flashing "--"
-            if (_shownFps >= 0) _win.SetFps(_shownFps);
-        }
-        else _win.SetTagOnly();
         if (!_win.IsVisible) _win.Show();
-        if (_counter != null) _win.PlaceTopLeft(hwnd, 8, 4); else _win.PlaceTopRight(hwnd, 0, 0);
+        _win.PlaceTopRight(hwnd, 0, 0);
     }
 
     public void Dispose()
@@ -68,7 +57,6 @@ public sealed class OverlayController : IDisposable
         _disposed = true;
         _timer.Stop();
         try { _win.Close(); } catch { }
-        _counter?.Dispose();
         _game.Dispose();
     }
 }

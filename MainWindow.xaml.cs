@@ -115,7 +115,7 @@ public partial class MainWindow : Window
         if (path != null) await OpenGameAsync(path);
         else { InfoText.Text = "No game selected. Use Browse… and pick LaNoire.exe."; Status("Select your L.A. Noire folder to begin."); }
         RefreshProfiles();
-        OverlayBox.IsChecked = _cfg.OverlayEnabled;
+        UpdateOverlayAvailability();
     }
 
     private async Task OpenGameAsync(string path)
@@ -132,7 +132,9 @@ public partial class MainWindow : Window
         GamePathBox.Text = _game.Root;
         InfoText.Text = $"LaNoire.exe  version {_game.FileVersion}  (build {_game.Build})\n" +
                         $"SHA-256: {sha}\n" +
-                        (_game.IsSupported ? "Build is supported by V-Patch 2.0." : "⚠ Build is NOT in V-Patch's supported list (2617 / 2663 / 2675). The patch may not work.");
+                        (_game.IsSupported ? "Build is supported by V-Patch 2.0." : "⚠ Build is NOT in V-Patch's supported list (2617 / 2663 / 2675). The patch may not work.") +
+                        (_game.IsWritable() ? "" : "\n⚠ This folder is write-protected for normal users (typical for Program Files), so installing V-Patch, DXVK or ReShade here would fail. " +
+                                                   "Move the game to a normal folder (for example D:\\Games), or start the launcher once with right-click > Run as administrator.");
         LoadFromDisk();
     }
 
@@ -148,6 +150,7 @@ public partial class MainWindow : Window
         }
         RefreshDxvk();
         RefreshAtb();
+        RefreshHd();
         RefreshReShade();
         SettingsPathBox.Text = _cfg.SettingsPath ?? "(not found — use Browse…)";
         if (!string.IsNullOrEmpty(_cfg.SettingsPath) && File.Exists(_cfg.SettingsPath))
@@ -373,6 +376,9 @@ public partial class MainWindow : Window
         try { if (ApplyReShade() is { } rn) note += " " + rn; }
         catch (Exception ex) { Status("ReShade: " + ex.Message); return false; }
 
+        try { if (HdSaveSettingsQuiet() is { } hn) note += " " + hn; }
+        catch (Exception ex) { Status("HD textures: " + ex.Message); return false; }
+
         Status("Settings applied (backups are in %AppData%\\LANoireLauncher\\backups)." + note);
         return true;
     }
@@ -401,8 +407,7 @@ public partial class MainWindow : Window
                 Arguments = string.Join(" ", args),
                 UseShellExecute = false,
             };
-            bool wantFps = OverlayBox.IsChecked == true, dxvk = SelectedApi != DxvkApi.Off;
-            if (wantFps && dxvk) psi.Environment["DXVK_HUD"] = "fps";   // DXVK draws its own tiny counter
+            if (FpsOverlayActive) psi.Environment["DXVK_HUD"] = "fps";   // DXVK draws its own tiny counter
             else psi.Environment.Remove("DXVK_HUD");
             foreach (var kv in DxvkEnvironment()) psi.Environment[kv.Key] = kv.Value;
             // ReShade is loaded from plugins\ReShade64.asi; without this it treats plugins\ as its base folder
@@ -411,34 +416,42 @@ public partial class MainWindow : Window
             Status("Launched: LaNoire.exe " + string.Join(" ", args) + (SelectedApi != DxvkApi.Off ? "   [Vulkan via DXVK]" : "   [DirectX 11]"));
         }
         catch (Exception ex) { Status("Launch failed: " + ex.Message); return; }
-        if (game != null && OverlayBox.IsChecked == true) StartOverlay(game, SelectedApi != DxvkApi.Off);
+        if (game != null && FpsOverlayActive) StartOverlay(game);
         if (game != null && _cfg.CloseAfterLaunch)
         {
-            if (OverlayBox.IsChecked == true) Status(StatusText.Text + "   (launcher kept open for the FPS overlay)");
+            if (FpsOverlayActive) Status(StatusText.Text + "   (launcher kept open for the FPS overlay)");
             else Close();
         }
     }
 
     // ---------- FPS overlay ----------
-    // DXVK on  -> DXVK's built-in HUD ("fps"), set as an environment variable at launch, plus a launcher-drawn "(DXVK)" label beside it.
-    // DXVK off -> launcher-drawn "FPS: n" text in the same style, fed by Windows' DXGI present events.
+    // Only with DXVK on: DXVK's built-in HUD ("fps") is switched on through an environment variable at launch, and the launcher
+    // draws a small "DXVK" label beside it. Nothing is read from Windows, so no administrator rights are needed.
+    private bool FpsOverlayActive => SelectedApi != DxvkApi.Off && OverlayBox.IsChecked == true;
+
     private void OverlayBox_Click(object sender, RoutedEventArgs e)
     {
         _cfg.OverlayEnabled = OverlayBox.IsChecked == true;
         _cfg.Save();
-        if (!_cfg.OverlayEnabled) { _overlay?.Dispose(); _overlay = null; OverlayMsgText.Text = ""; }
+        if (!_cfg.OverlayEnabled) { _overlay?.Dispose(); _overlay = null; }
     }
 
-    private void StartOverlay(Process game, bool dxvk)
+    private void DxvkEnableBox_Changed(object sender, RoutedEventArgs e) => UpdateOverlayAvailability();
+
+    /// <summary>The overlay needs DXVK: the checkbox is disabled (and shows unticked) while DXVK is off. The saved choice returns with DXVK.</summary>
+    private void UpdateOverlayAvailability()
+    {
+        bool dxvk = DxvkEnableBox.IsChecked == true;
+        OverlayBox.IsEnabled = dxvk;
+        OverlayBox.IsChecked = dxvk && _cfg.OverlayEnabled;
+        OverlayMsgText.Text = dxvk ? "" : "Turn on \"Render with Vulkan (DXVK)\" to use the FPS overlay.";
+        if (!dxvk) { _overlay?.Dispose(); _overlay = null; }
+    }
+
+    private void StartOverlay(Process game)
     {
         _overlay?.Dispose(); _overlay = null;
-        FpsCounter? counter = null;
-        if (!dxvk)
-        {
-            counter = FpsCounter.TryStart(game.Id, out var err);
-            if (counter == null) { OverlayMsgText.Text = err ?? ""; return; }
-        }
-        var ctl = new OverlayController(game, counter, msg => OverlayMsgText.Text = msg);
+        var ctl = new OverlayController(game);
         ctl.Finished += () => { if (_overlay == ctl) _overlay = null; };
         _overlay = ctl;
     }

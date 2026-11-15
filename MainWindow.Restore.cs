@@ -13,7 +13,7 @@ public partial class MainWindow
         if (MessageBox.Show(
                 "This undoes everything the launcher changed in the game folder:\n\n" +
                 "•  ReShade, DXVK and V-Patch removed\n" +
-                "•  Enhancements reverted\n" +
+                "•  Enhancements reverted, HD texture plugin removed (your built pack is kept)\n" +
                 "•  settings.ini restored to its first version\n\n" +
                 "Files you had before (such as dinput8.dll) are put back. Your shaders, presets, profiles and backups are kept.\n\nContinue?",
                 "Restore to stock", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -35,6 +35,7 @@ public partial class MainWindow
             AtbPatcher.Revert(wad);
             AtbPatcher.RemoveBackupCopy(wad);
         });
+        Step("HD textures", () => HdTextureManager.UninstallPlugin(g));            // loads through V-Patch's loader, so before V-Patch
         Step("V-Patch", () => { if (PatchManager.InstalledByLauncher(g)) PatchManager.Uninstall(g); });
         Step("settings.ini", () =>
         {

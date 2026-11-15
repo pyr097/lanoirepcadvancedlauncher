@@ -54,6 +54,19 @@ public sealed class GameInstall
         return Convert.ToHexString(SHA256.HashData(s)).ToLowerInvariant();
     }
 
+    /// <summary>False when the game folder is write-protected for this user (typical for Program Files without admin rights).</summary>
+    public bool IsWritable()
+    {
+        try
+        {
+            var probe = Path.Combine(Root, ".write-test-" + Environment.ProcessId);
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+    }
+
     public static bool IsRunning() => Process.GetProcessesByName("LaNoire").Length > 0;
 
     /// <summary>Best-effort guess at common install locations; the user can always browse.</summary>

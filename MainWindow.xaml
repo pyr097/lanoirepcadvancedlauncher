@@ -75,7 +75,7 @@
                 <TextBlock Text="FPS OVERLAY" Style="{StaticResource SectionLabel}"/>
                 <CheckBox x:Name="OverlayBox" Content="Show FPS Overlay" Click="OverlayBox_Click"/>
                 <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" TextWrapping="Wrap"
-                           Text="Administrator rights are needed only when DXVK is off, because Windows only lets administrators read the game's frame data. With DXVK on, the overlay works without them."/>
+                           Text="Uses DXVK's built-in FPS counter, so it is only available when DXVK is on. No administrator rights are needed."/>
                 <TextBlock x:Name="OverlayMsgText" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
               </StackPanel>
             </Border>
@@ -135,7 +135,7 @@
                 <TextBlock x:Name="DxvkStatusText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
                 <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14"
                            Text="Runs the game on Vulkan instead of DirectX 11. Install it, tick the box, then play from here. Unticking it and applying removes it. For an FPS limit, use the V-Patch tab."/>
-                <CheckBox x:Name="DxvkEnableBox" Content="Render with Vulkan (DXVK)" Margin="0,0,0,14"/>
+                <CheckBox x:Name="DxvkEnableBox" Content="Render with Vulkan (DXVK)" Margin="0,0,0,14" Checked="DxvkEnableBox_Changed" Unchecked="DxvkEnableBox_Changed"/>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                   <TextBlock Text="DXVK version" Width="120" VerticalAlignment="Center"/>
                   <ComboBox x:Name="DxvkVersionBox" Width="140" IsEditable="True" Text="latest">
@@ -317,8 +317,75 @@
                 </StackPanel>
               </StackPanel>
             </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="HD TEXTURES (PS4 REMASTER)" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="HdStatusText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
+                           Text="Sharper textures from the PS4 remaster, built on this PC from your own PS4 files and swapped in while the game loads them. No game file is changed and nothing is shared. Building the pack needs 64-bit Python 3."/>
+
+                <TextBlock Text="1. Your PS4 files" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <DockPanel Margin="0,0,0,12">
+                  <Button DockPanel.Dock="Right" x:Name="HdPs4BrowseBtn" Content="Browse…" Click="HdBrowsePs4_Click" Margin="6,0,0,0" Padding="10,2"/>
+                  <TextBox x:Name="HdPs4Box" IsReadOnly="True"/>
+                </DockPanel>
+
+                <TextBlock Text="2. Build or extend the pack" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <WrapPanel Margin="0,0,0,4">
+                  <CheckBox x:Name="HdArcVehicles" Content="Vehicles" IsChecked="True" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcProps" Content="Props" IsChecked="True" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcPropsHigh" Content="Props (high detail)" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcCharacters" Content="Characters" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcRefChars" Content="Character textures" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcRefPop" Content="World textures (large)" Margin="0,0,16,4"/>
+                  <CheckBox x:Name="HdArcAll" Content="All archives (very slow)" Margin="0,0,16,4"/>
+                </WrapPanel>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" TextWrapping="Wrap"
+                           Text="Each run adds to the same pack, so you can go one group at a time and stop whenever you like. Props take minutes; world textures read several GB and take much longer. Not sure which groups to build? Play with the diagnostic log on (step 3), then press Analyze coverage."/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <TextBlock Text="Match threshold" VerticalAlignment="Center" Margin="0,0,8,0"
+                             ToolTip="Only used for packs without a texture table: how closely a PC texture and a PS4 texture must look alike before one replaces the other. Textures with matching IDs are paired exactly. Raise it if a wrong texture shows up."/>
+                  <TextBox x:Name="HdMinCorrBox" Text="0.85" Width="56"/>
+                  <CheckBox x:Name="HdFreshBox" Content="Start a new pack (deletes the existing one)" Margin="18,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                  <Button x:Name="HdBuildBtn" Content="Build / extend pack" Style="{StaticResource PrimaryButton}" Click="HdBuild_Click" Padding="26,8"/>
+                  <Button x:Name="HdCancelBtn" Content="Cancel" Click="HdCancel_Click" Margin="10,0,0,0" Padding="18,8" IsEnabled="False"/>
+                  <Button x:Name="HdExplainBtn" Content="Analyze coverage" Click="HdExplain_Click" Margin="10,0,0,0" Padding="18,8"
+                          ToolTip="Reads the plugin's diagnostic log and shows which archives the textures you saw in-game come from, and how many have a larger PS4 version. Reads only; builds nothing."/>
+                  <Button x:Name="HdDeleteBtn" Content="Delete pack" Click="HdDelete_Click" Margin="10,0,0,0" Padding="18,8"/>
+                </StackPanel>
+                <TextBox x:Name="HdLogBox" IsReadOnly="True" AcceptsReturn="True" Height="130" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="Consolas" VerticalContentAlignment="Top"/>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="3. HD TEXTURE PLUGIN" Style="{StaticResource SectionLabel}"/>
+                <TextBlock x:Name="HdPluginText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12" TextWrapping="Wrap"
+                           Text="A small 32-bit plugin (LanTexReplace.asi) that V-Patch's loader starts with the game. It needs the DirectX 11 path (also works with Vulkan/DXVK). It only uses the pack; remove it any time."/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                  <Button x:Name="HdInstallBtn" Content="Install / update plugin" Click="HdInstall_Click" Padding="18,6"/>
+                  <Button x:Name="HdRemoveBtn" Content="Remove plugin" Click="HdRemove_Click" Margin="10,0,0,0" Padding="18,6"/>
+                </StackPanel>
+                <CheckBox x:Name="HdEnableBox" Content="Enable HD textures" Margin="0,0,0,6" Click="HdSettingChanged"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Text="HD memory limit (MB)" VerticalAlignment="Center" Margin="0,0,8,0"
+                             ToolTip="Upper limit for HD textures held in video memory at once. Lower it if the game becomes unstable."/>
+                  <TextBox x:Name="HdBudgetBox" Text="1024" Width="72" LostFocus="HdSettingChanged"/>
+                </StackPanel>
+                <CheckBox x:Name="HdDiagBox" Content="Write a diagnostic log (plugins\LanTexReplace.log)" Margin="0,0,0,12" Click="HdSettingChanged"/>
+                <StackPanel Orientation="Horizontal">
+                  <Button x:Name="HdApplyBtn" Content="Save texture settings" Style="{StaticResource PrimaryButton}" Click="HdApply_Click" Padding="26,8"/>
+                  <Button x:Name="HdOpenLogBtn" Content="Open log" Click="HdOpenLog_Click" Margin="10,0,0,0" Padding="18,8"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="These settings also save when you change them and whenever you press Apply or Apply and Launch."/>
+              </StackPanel>
+            </Border>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16" TextWrapping="Wrap"
-                       Text="Works only on your own install. No game data is included in this launcher."/>
+                       Text="Works only on your own install. No game data is included in this launcher; textures are built on this PC from files you provide."/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -355,7 +422,7 @@
                 <TextBlock Text="LAUNCHER" Style="{StaticResource SectionLabel}"/>
                 <CheckBox x:Name="CloseAfterLaunchBox" Content="Close the launcher after starting the game" Click="CloseAfterLaunch_Click"/>
                 <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Text="Not applied while the FPS overlay is on, because the overlay is drawn by the launcher."/>
+                           Text="Not applied while the FPS overlay is on, because its label is drawn by the launcher."/>
               </StackPanel>
             </Border>
             <Border Style="{StaticResource Card}">

@@ -1,8 +1,6 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Security.Principal;
 using System.Text.Json;
 
 namespace LANoireLauncher.Core;
@@ -196,14 +194,7 @@ public static class UpdateManager
         }
         try { File.Delete(newExe); } catch (IOException) { }
 
-        var psi = new ProcessStartInfo(cur, "--updated") { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(cur)! };
-        if (IsAdministrator()) psi.Verb = "runas";              // an elevated launcher comes back elevated (FPS overlay, no extra prompt text)
-        try { Process.Start(psi); }
-        catch (Win32Exception) when (psi.Verb == "runas")       // UAC declined: start it normally
-        {
-            psi.Verb = "";
-            Process.Start(psi);
-        }
+        Process.Start(new ProcessStartInfo(cur, "--updated") { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(cur)! });
     }
 
     /// <summary>Deletes the previous exe and downloaded files after a restart (retries while the old process is still exiting).</summary>
@@ -222,11 +213,5 @@ public static class UpdateManager
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { await Task.Delay(2000); }
             }
         });
-    }
-
-    private static bool IsAdministrator()
-    {
-        using var id = WindowsIdentity.GetCurrent();
-        return new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator);
     }
 }

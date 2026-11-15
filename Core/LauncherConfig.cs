@@ -20,6 +20,8 @@ public sealed class LauncherConfig
 {
     public string? GamePath { get; set; }
     public string? SettingsPath { get; set; }
+    public string? Ps4Path { get; set; }          // folder with the user's own .big.ps4 files (HD textures)
+    public string? HdPackPath { get; set; }       // optional override of <game>\hdpack
     public bool OverlayEnabled { get; set; }
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool CloseAfterLaunch { get; set; }

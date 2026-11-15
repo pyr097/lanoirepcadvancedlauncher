@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LANoireLauncher</AssemblyName>
     <!-- the release workflow overrides this from the git tag (v1.2.3 -> 1.2.3); the updater compares against it -->
-    <Version>2.5.7</Version>
+    <Version>2.6.5</Version>
     <RootNamespace>LANoireLauncher</RootNamespace>
     <ApplicationIcon>Assets\lanoire.ico</ApplicationIcon>
 
@@ -37,9 +37,6 @@
     <Using Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.16" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="Assets\lanoire.ico" />
     <Resource Include="Assets\lanoire.png" />
   </ItemGroup>
@@ -48,6 +45,11 @@
     <EmbeddedResource Include="Assets\Fxaa3_11.h" LogicalName="Fxaa3_11.h" />
     <!-- default ReShade preset, copied into the launcher's Presets folder right after the ReShade runtime is installed (see SeedDefaultPreset) -->
     <EmbeddedResource Include="Assets\DefaultPreset.ini" LogicalName="DefaultPreset.ini" />
+    <!-- HD textures: the pack-building tool (run with the user's Python; extracted to %AppData% when used) -->
+    <EmbeddedResource Include="Assets\lan_tex_tools.py" LogicalName="lan_tex_tools.py" />
+    <!-- HD textures: the 32-bit D3D11 plugin. Built from Plugin\ by the release workflow (or Plugin\build_msvc.bat);
+         when the file is absent the launcher still builds and asks for a LanTexReplace.asi at install time. -->
+    <EmbeddedResource Include="Assets\LanTexReplace.asi" LogicalName="LanTexReplace.asi" Condition="Exists('Assets\LanTexReplace.asi')" />
   </ItemGroup>
 
   <!-- A plain "Build" never makes a single file (only Publish does). So a Release build also publishes, leaving

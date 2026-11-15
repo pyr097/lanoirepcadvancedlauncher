@@ -4,7 +4,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False" IsHitTestVisible="False"
         SizeToContent="WidthAndHeight" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
-  <!-- Same look as DXVK's HUD: bold monospace, coral "FPS:" label, white value, no panel. -->
+  <!-- Same look as DXVK's HUD: bold monospace, no panel. Only the "DXVK" label; DXVK draws the FPS number itself. -->
   <StackPanel Orientation="Horizontal">
     <StackPanel.Resources>
       <Style TargetType="TextBlock">
@@ -17,8 +17,6 @@
         </Setter>
       </Style>
     </StackPanel.Resources>
-    <TextBlock x:Name="FpsLabel" Text="FPS:" Foreground="#F28585"/>
-    <TextBlock x:Name="FpsText" Text=" --.-"/>
-    <TextBlock x:Name="TagText" Text="DXVK" Visibility="Collapsed"/>
+    <TextBlock x:Name="TagText" Text="DXVK"/>
   </StackPanel>
 </Window>
