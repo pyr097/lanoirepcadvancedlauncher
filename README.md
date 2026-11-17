@@ -111,6 +111,27 @@ Requires the .NET 8 SDK on Windows. Run `dotnet publish -c Release` (or do a Rel
 
 The version comes from a git tag: pushing one runs `.github/workflows/release.yml`, which builds the exe, writes a SHA-256 file and publishes a GitHub release (a tag with a dash, such as `v1.2.0-beta.1`, becomes a pre-release). Local builds use `<Version>` in `LANoireLauncher.csproj`. The workflow also compiles the 32-bit HD texture plugin from `Plugin\` (MSVC, x86) and embeds it. For a local build with the plugin: run `Plugin\build_msvc.bat` from the "x86 Native Tools Command Prompt for VS", then build the launcher; without `Assets\LanTexReplace.asi` the launcher still builds and asks for the file at install time.
 
+build.bat for a faster build (put in main project folder): 
+
+@echo off
+rem Builds LANoireLauncher into ONE exe at .\dist\LANoireLauncher.exe
+rem   build.bat         -> small exe, needs the .NET 8 Desktop Runtime on the PC
+rem   build.bat full    -> bigger exe with the runtime inside, runs anywhere
+cd /d "%~dp0"
+if exist dist rmdir /s /q dist
+if /i "%~1"=="full" (
+  dotnet publish LANoireLauncher.csproj -c Release -p:SelfContained=true -p:NoPublishAfterBuild=true -o dist
+) else (
+  dotnet publish LANoireLauncher.csproj -c Release -p:NoPublishAfterBuild=true -o dist
+)
+if errorlevel 1 ( echo Build failed. & pause & exit /b 1 )
+echo.
+echo Done: %~dp0dist\LANoireLauncher.exe
+pause
+
+
+
+
 ```
 git tag v2.6.5
 git push origin v2.6.5
