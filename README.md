@@ -113,6 +113,7 @@ The version comes from a git tag: pushing one runs `.github/workflows/release.ym
 
 build.bat for a faster build (put in main project folder): 
 
+```
 @echo off
 rem Builds LANoireLauncher into ONE exe at .\dist\LANoireLauncher.exe
 rem   build.bat         -> small exe, needs the .NET 8 Desktop Runtime on the PC
@@ -128,7 +129,7 @@ if errorlevel 1 ( echo Build failed. & pause & exit /b 1 )
 echo.
 echo Done: %~dp0dist\LANoireLauncher.exe
 pause
-
+```
 
 
 
