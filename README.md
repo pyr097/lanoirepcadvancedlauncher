@@ -123,30 +123,33 @@ git push origin v2.6.5
 - `Overlay/`: the small "DXVK" label shown next to DXVK's own FPS counter.
 - `Plugin/`: source of the 32-bit D3D11 plugin (`LanTexReplace.cpp`, `lantex_core.h`, `build_msvc.bat`). `Assets/lan_tex_tools.py`: the texture pack tool (embedded).
 
-## What's new in 2.6.5
+## What's new in 2.6.5 Final
 - **No more administrator rights.** The launcher no longer asks to restart as administrator at startup, and the updater no longer elevates.
 - **FPS overlay only with DXVK.** The overlay now always uses DXVK's own counter (no Windows tracing, so nothing needs elevated rights). With DXVK off the checkbox is disabled; your choice is remembered and comes back when DXVK is turned on again. The Windows-based counter and its `TraceEvent` dependency were removed.
 - If the game folder is write-protected (typical for Program Files), the launcher now tells you under the game folder.
 
-## What's new in 2.6.4
+## What's new in 2.6.4 (internal release, integrated in 2.6.5 Final)
 - **HD textures: Analyze coverage.** A new button reads the plugin's diagnostic log and shows, per archive, where the textures you saw in-game come from and how many have a larger PS4 version, so you know which groups are worth building. (Standalone: `lan_tex_tools.py explain`.)
 - The diagnostic log now records every texture upload (before, only the first 2000), and its final line shows the peak HD memory (`peakHdMB`).
 
-## What's new in 2.6.3
+## What's new in 2.6.3 (internal release, integrated in 2.6.5 Final)
 - **HD textures: settings now always save.** The enable switch, memory limit and diagnostic log save the moment you change them, and again whenever you press Apply or Apply and Launch. Before, they were only saved by their own button and could silently revert.
 - **The plugin file is checked.** Install refuses any file that is not the 32-bit HD texture plugin (installing another .asi under its name, for example a copy of `lanvp.asi`, makes V-Patch load twice and fail with "No signatures found"). The panel also shows which `.asi` files the loader starts, warns about identical copies and about an invalid plugin file, shows when the log was last written, and has an **Open log** button.
 - **The plugin stays out of the way at startup.** It now does nothing until the game itself has loaded `d3d11.dll`, so it can no longer interfere with V-Patch or ReShade while they initialise. With logging on it always writes the log header immediately, even when it has nothing to hook (for example on the DirectX 9 path).
 
-## What's new in 2.6.2
+## What's new in 2.6.2 (internal release, integrated in 2.6.5 Final)
 - HD textures: the build log ends with a per-archive table (textures found, upgraded, already the same size, no PS4 counterpart, unsupported PS4 format), so you can see which archives are worth building.
 
-## What's new in 2.6.1
+## What's new in 2.6.1 (internal release, integrated in 2.6.5 Final)
 - HD textures: the pack builder now pairs textures by the exact IDs in each pack's texture table (with a picture sanity check) instead of guessing from pictures. This is safer and gives a precise report. Small DLC archives that are not compressed are handled too.
 
-## What's new in 2.6.0
+## What's new in 2.6.0 (internal release, integrated in 2.6.5 Final)
 - **Enhancements: HD textures from the PS4 remaster.** Build a pack from your own PS4 files and enable it with a small plugin (see above). Includes a live build log, cancel, extend-the-pack runs, and a memory limit.
 - Restore to stock also removes the HD texture plugin (your pack is kept).
 - The release workflow compiles the plugin and embeds it in the exe.
+
+
+## What's new in 2.5.7 Final - Initial public release (run as administrator if you want dx9 fps overlay).
 
 ## Credits and licences
 - **V-Patch** by VaanaCZ, [github.com/VaanaCZ/LANVP](https://github.com/VaanaCZ/LANVP), CC BY-NC 4.0 (non-commercial). Installed on request, not included.
